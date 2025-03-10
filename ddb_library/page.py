@@ -2,6 +2,7 @@ from .magic_item_reference import MagicItemReference
 from .monster_reference import MonsterReference
 from .myencoder import MyEncoder
 from .spell_reference import SpellReference
+from .html_processor import process_html
 from bs4 import BeautifulSoup
 import json
 import os
@@ -102,95 +103,9 @@ class Page:
     
     def get_html(self, **kwargs):
         with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin.read(), 'html.parser')
+            html_text = fin.read()
 
-        # pulls out meta tags and adds them back in later
-        meta_tags = []
-        if kwargs.get('keep_meta', True):
-            for meta in soup.find_all('meta'):
-                if meta.get('property', None):
-                    meta_tags.append(meta.extract())
-
-        # strip out just the div we want
-        if kwargs.get('remove_useless_html', True):
-            """body = soup.find('div', class_='p-article-content')
-            if not body:
-                body = soup.find('div', class_='article-main')
-            soup = body"""
-            body = soup.find('div', class_='p-article-content')
-            if not body:
-                body = soup.find('div', class_='article-main')
-            soup = body.extract()
-            
-            for meta in meta_tags:
-                soup.insert(1, new_child=meta)
-
-        # remove spans that serve no purpose
-        if kwargs.get('remove_useless_spans', False):
-            unwrap_span_classes = ['Epigraph-Author', 'Epigraph-Small-Cap', 'No-Break','Serif-Character-Style_Small-Cap-Serif']
-            matches = soup.findAll('span', class_=unwrap_span_classes)
-            if matches:
-                for match in soup.findAll('span', class_=unwrap_span_classes):
-                    match.unwrap()
-
-        # remove chunk ids
-        if kwargs.get('remove_content_ids', False):
-            attribute = 'data-content-chunk-id'
-            for tag in soup.find_all(attrs={attribute: False}):
-                del tag[attribute]
-
-        # remove tag attributes
-        if kwargs.get('remove_tag_attributes', False):
-            soup = remove_all_tag_attibutes(soup)
-
-        # remove images
-        if kwargs.get('remove_images', False):
-            for data in soup(['figure','img']):
-                data.decompose()
-
-        # remove links
-        if kwargs.get('remove_links', False):
-            for data in soup(['a']):
-                data.unwrap()
-        
-        # remove formatting
-        if kwargs.get('remove_formatting', False):
-            for data in soup(['aside','b','em','i','span','strong']): # should span be in here?
-                data.unwrap()
-
-        if kwargs.get('cleanup_paragraphs', False):
-            for data in soup(['p']):
-                if data.text.strip() == '':
-                    data.decompose()
-        
-        if kwargs.get('cleanup_divs', False):
-            soup = cleanup_div(soup)
-        
-        html_text = str(soup)
-
-        # remove blank lines
-        if kwargs.get('remove_blank_lines', False):
-            html_text = re.sub(r'[\r\n]+', '\n', html_text)
-            html_text = '\n'.join([l for l in html_text.split('\n') if len(l) > 0])
-
-        if kwargs.get('prettify', False):
-            #soup = BeautifulSoup(html_text, 'html.parser')
-            #soup = unwrap_tags(soup)
-            #html_text = str(soup)
-            html_text = html_text.replace(' ', ' ')                                 # replace invisible character U+00a0 with space.
-            html_text = html_text.replace('­', '')                                   # replace invisible character U+00ad with nothing.
-            html_text = re.sub(r'(\s*<br/>\s*)+', '<br/>\n', html_text)             # ensure a <br/> is always followed by a new line and multiple aren't chained together
-            html_text = re.sub(r'</div>(?=</div>)', '</div>\n', html_text)          # split multiple closed div tags across multiple lines.
-            html_text = re.sub(r'<(\w+)> +', r'<\1>', html_text)                    # remove spaces after open tag 
-            html_text = re.sub(r' +</(\w+)>', r'</\1>', html_text)                  # remove spaces before close tag 
-            html_text = re.sub(r'[−–—]', '-', html_text)                            # replace dash characters U+2212 and U+2013 with dashes.
-            html_text = re.sub(r'\s*<(li|p)>\s*', r'\n<\1>', html_text)             # put <li> and <p> tags at the start of their own line.
-            html_text = re.sub(r'\s*</(li|p)>\s*', r'</\1>\n', html_text)           # put <li> and <p> tags at the start of their own line.
-            html_text = re.sub(r'(?<!>)\n(?=[^<]+</p>)', '', html_text)             # makes sure paragraphs aren't broken up unnecessarily
-            html_text = re.sub(r'\s*(</?blockquote>)\s*', r'\n\1\n', html_text)     # put <blockquote> tags on their own line
-            html_text = re.sub(r'\s*(</?caption>)\s*', r'\n\1\n', html_text)        # put <caption> tags on their own line
-
-        return html_text
+        return process_html(html_text, **kwargs)
     
     def get_magic_items(self, **kwargs):
         with open(self.path, 'r') as fin:

@@ -103,23 +103,23 @@ class Book:
         return os.path.isdir(self.path)
 
     def get_html(self, **kwargs):
-        book_html = kwargs.get('html_start', 
-            ['<!DOCTYPE html>', 
-             '<meta charset="utf-8"/>'],
-        )
-        if type(book_html) is not list:
-            book_html = [book_html]
+        if kwargs.get('extract_main_body', False):
+            html_start = [kwargs.pop('html_start', 
+                '\n'.join(['<!DOCTYPE html>','<html lang="en-us">','<meta charset="utf-8"/>']),
+            )]
+            html_end = [kwargs.pop('html_end', '</html>')]
+        else:
+            html_start = []
+            html_end = []
         
+        book_html = []
         if self.table_of_contents:
-            book_html.append(self.table_of_contents.get_html(**kwargs))
+            book_html.append(self.table_of_contents.get_html(**kwargs, html_start='', html_end=''))
         
         for page in self.pages:
-            book_html.append(page.get_html(**kwargs))
+            book_html.append(page.get_html(**kwargs, html_start='', html_end=''))
         
-        if 'html_end' in kwargs:
-            book_html.append(kwargs.get('html_end'))
-        
-        return '\n'.join(book_html)
+        return '\n'.join(html_start + book_html + html_end)
     
     def get_magic_items(self):
         magic_items = []

@@ -1,5 +1,6 @@
 from .myencoder import MyEncoder
 from bs4 import BeautifulSoup
+from .html_processor import process_html
 import json
 import os
 import re
@@ -55,30 +56,9 @@ class Sources:
             raise FileNotFoundError("File does not exist.")
         
         with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin.read(), 'html.parser')
+            html_text = fin.read()
 
-        if kwargs.get('remove_useless_html', True):
-            text = [
-                '<!DOCTYPE html>',
-                '<html lang="en-us">',
-            ]
-            for meta in soup.find_all('meta'):
-                if meta.get('property', None):
-                    text.append(str(meta))
-
-            div = soup.find('div', {'class': 'main content-container'})
-            text.append(str(div) if div else '')
-
-            text.append('</html>')
-
-            soup = BeautifulSoup('\n'.join(text), 'html.parser')
-
-            for data in soup(['footer','head','noscript','script','style']):
-                data.decompose()
-        
-        html_text = str(soup)
-
-        return html_text
+        return process_html(html_text, **kwargs)
     
     def to_json(self, **kwargs):
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
