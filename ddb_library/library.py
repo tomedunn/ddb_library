@@ -93,7 +93,7 @@ class Library:
                 os.mkdir(path)
         
         # sources file
-        if self.sources:
+        if self.sources and kwargs.get('sources', True):
             sources_path = os.path.join(path, self.sources.file)
             self.sources.copy(sources_path, **kwargs)
         
@@ -108,6 +108,7 @@ class Library:
 
         for book in self.books:
             if not book.validate(): continue
+            if not book.name in kwargs.get('book_names', self.get_book_names()): continue
             book_path = os.path.join(path, 'sources', os.path.basename(book.path))
             book.copy(book_path, **kwargs)
 
@@ -197,8 +198,13 @@ class Library:
         if logging: print(f'Found {self.size()} books.')
         return self
 
-    def get_book_names(self):
-        return [book.name for book in self.books]
+    def get_book_names(self, **kwargs):
+        if 'update_available' in kwargs:
+            return [book.name for book in self.books if book.update_available() == kwargs['update_available']]
+        elif 'validate' in kwargs:
+            return [book.name for book in self.books if book.validate() == kwargs['validate']]
+        else:
+            return [book.name for book in self.books]
     
     def get_magic_items(self, **kwargs):
         magic_items = []

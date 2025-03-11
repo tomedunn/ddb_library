@@ -38,8 +38,9 @@ class Sources:
         if dryrun:
             print(f'Copying contents of "{self.path}" to "{path}".')
         else:
+            html_text = self.get_html(**kwargs)
             with open(path, 'w') as fout:
-                fout.write(self.get_html(**kwargs))
+                fout.write(html_text)
 
         return self
 
