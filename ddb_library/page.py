@@ -1,57 +1,10 @@
-from .magic_item_reference import MagicItemReference
-from .monster_reference import MonsterReference
+from .content_reference import ContentReference
 from .myencoder import MyEncoder
-from .spell_reference import SpellReference
 from .html_processor import process_html
 from bs4 import BeautifulSoup
 import json
 import os
 import re
-
-def unwrap_tags(soup):
-    for data in soup(['aside','html']):
-        data.unwrap()
-    
-    return soup
-
-def cleanup_div(soup):
-    re_reps = re.compile('\n')
-
-    for data in soup(['div']):
-        if data.text.strip() == '':
-            data.decompose()
-    
-    for data in soup(['div']):
-        if len([c for c in data.contents if c.name]) == 1:
-            for c in data.contents:
-                if c.name == 'div':
-                    data.unwrap()
-                    break
-    
-    for d in soup('div'):
-        if len([c for c in d.contents if c.name != None]) == 0:
-            d.string = re_reps.sub(' ', d.text.strip())
-    
-    return soup
-
-def remove_all_tag_attibutes(soup):
-    attributes_to_del = [
-        'class', 'id', 'style', 'border', 'rowspan', 'colspan', 
-        'width', 'height', 'align', 'valign', 'color', 'bgcolor', 
-        'cellspacing', 'cellpadding', 'onclick', 'alt', 'title',
-        'data-next-link','data-next-title',
-        'data-prev-link','data-prev-title',
-        'data-content-chunk-id', 'ata-content-chunk-id',
-        'data-sheets-value', 
-        'data-chapter-slug'
-    ]
-    
-    for attr_del in attributes_to_del: 
-        if attr_del in soup.attrs:
-            soup.attrs.pop(attr_del)
-        [s.attrs.pop(attr_del) for s in soup.find_all() if attr_del in s.attrs]
-
-    return soup
 
 class Page:
     def __init__(self, *args, **kwargs):
@@ -108,53 +61,84 @@ class Page:
 
         return process_html(html_text, **kwargs)
     
-    def get_magic_items(self, **kwargs):
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin, 'html.parser')
+    def get_content(self, **kwargs):
+        html_options = kwargs.get('html_options', {})
+        soup = BeautifulSoup(self.get_html(**html_options), 'html.parser')
 
         # remove some annoying formatting stuff
         for d in soup.find_all('div', {'class': 'flexible-double-column'}):
             d.decompose()
         
-        magic_items = []
-        for h in soup.find_all(['h2','h3','h4']):
+        """tags = [
+            ('h2'),
+            ('h3'),
+            ('h4'),
+            ('h5'),
+            ('p', 'Stat-Block-Styles_Stat-Block-Title'),
+        ]"""
+        content_types = kwargs.get('types', ['magic item','monster','spell'])
+        content = []
+        for h in soup.find_all(['h2','h3','h4','h5','p']):
+            if h.name == 'p':
+                if 'Stat-Block-Styles_Stat-Block-Title' not in h.get('class', ''):
+                    continue
+            
             items = []
-            a = h.find('a', {'class': 'tooltip-hover magic-item-tooltip'})
+            a = h.find('a', {'class': ['magic-item-tooltip','monster-tooltip','spell-tooltip']})
             if a:
                 items.append(a)
             else:
                 p = h.find_next_sibling()
                 if not p: continue
                 if p.name not in ['p']: continue
+                if p.contents[0].name not in ['em']: continue
 
-                em = p.find('em')
-                if not em: continue
+                # could also check that the parent of each <a> is an <em> ...
+                # found one error: 17023-stirge, http://www.dndbeyond.com/sources/dnd/tftyp/a2/the-forge-of-fury
 
-                for a in em.find_all('a', {'class': 'tooltip-hover magic-item-tooltip'}):
+                for a in p.find_all('a', {'class': ['magic-item-tooltip','monster-tooltip']}):
                     items.append(a)
             
-            if not items:
-                continue
+            if not items: continue
 
-            # extract all lines between this <h3> and the next one
+            # extract all lines between this heading and the next one.
             s = BeautifulSoup(str(h), 'html.parser')
             for n in h.find_next_siblings():
-                if n.name in ['h1','h2','h3']:
+                if n.name in ['h1','h2','h3','h4','h5']:
                     break
                 elif len(n.get_text('', strip=True)) > 0:
                     s.append('\n')
                     s.append(n)
             
+            # construct references
             for a in items:
-                magic_items += [MagicItemReference({
-                    'id': a['href'][13:],
-                    'name': h.get_text('', strip=True),
-                    'modified': self.modified,
-                    'path': self.path,
-                    'html': str(s),
-                })]
+                if 'magic-item-tooltip' in a['class']:
+                    content_type = 'magic item'
+                elif 'monster-tooltip' in a['class']:
+                    content_type = 'monster'
+                elif 'spell-tooltip' in a['class']:
+                    content_type = 'spell'
+                else:
+                    content_type = None
+                
+                content_id = a['href'].split('/')[-1]
+                m = re.match(r'^(?P<id_num>\d+)-.*$', content_id)
+                if not m: continue
+                
+                if content_type in content_types:
+                    content += [ContentReference({
+                        'id': content_id,
+                        'type': content_type,
+                        'name': h.get_text('', strip=True),
+                        'modified': self.modified,
+                        'path': self.path,
+                        'html': str(s),
+                    })]
+        
+        return content
 
-        return magic_items
+    def get_magic_items(self, **kwargs):
+        return self.get_content(types=['magic item'], **kwargs)
     
     def get_meta_data( self ):
         with open(self.path, 'r') as fin:
@@ -174,152 +158,11 @@ class Page:
 
         return meta_data
     
-    def get_monsters( self ):
-        def _monster_class( class_ ):
-            re_monster = re.compile(
-                r'^(?:'
-                    r'Basic-Text-Frame(-\d)?'
-                    r'|monster--stat-block'
-                    r'|stat-block'
-                r')$'
-            )
-            return class_ and re_monster.match(class_)
-        
-        def _heading_class( class_ ):
-            re_monster = re.compile(
-                r'\b(?:'
-                    r'heading-anchor'
-                    r'|compendium-hr'
-                r')\b'
-            )
-            return class_ and re_monster.match(class_)
-        
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin.read(), 'html.parser')
+    def get_monsters( self, **kwargs ):
+        return self.get_content(types=['monster'], **kwargs)
 
-        monsters = []
-        for d in soup.find_all('div', class_=_monster_class):
-            p = d.find(['h3','p'], {'class': 'Stat-Block-Styles_Stat-Block-Title'})
-            if not p: 
-                #p = d.find(['h2','h3','h4','h5'], {'class': 'heading-anchor'})
-                p = d.find(['h2','h3','h4','h5'], class_=_heading_class)
-
-            if not p: continue
-
-            a = p.find('a', {'class': 'tooltip-hover monster-tooltip'})
-            if not a: continue
-
-            monsters.append(MonsterReference({
-                'id': a['href'][10:],
-                'name': a.get_text('', strip=True),
-                'modified': self.modified,
-                'path': self.path,
-                'html': str(d),
-            }))
-
-        return monsters
-
-    def get_name( self ):
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin.read(), 'html.parser')
-        meta = soup.find('meta', {'property': 'og:title'})
-        if meta:
-            return meta['content']
-        else:
-            return None
-
-    def get_spells( self ):
-        #if not self.has_spells():
-        #    return []
-        
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin, 'html.parser')
-
-        # remove some annoying formatting stuff
-        for d in soup.find_all('div', {'class': 'flexible-double-column'}):
-            d.decompose()
-        
-        spells = []
-        for h in soup.find_all('h3'):
-            a = h.find('a', {'class': 'tooltip-hover spell-tooltip'})
-            if not a: continue
-
-            # extract all lines between this <h3> and the next one
-            s = BeautifulSoup(str(h), 'html.parser')
-            for n in h.find_next_siblings():
-                if n.name in ['h1','h2','h3']:
-                    break
-                elif len(n.get_text('', strip=True)) > 0:
-                    s.append('\n')
-                    s.append(n)
-            
-            spells += [SpellReference({
-                'id': a['href'][8:],
-                'name': a.get_text('', strip=True),
-                'modified': self.modified,
-                'path': self.path,
-                'html': str(s),
-            })]
-
-        return spells
-    
-    def get_tables(self, **kwargs):
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin, 'html.parser')
-
-        # remove some annoying formatting stuff
-        for d in soup.find_all('div', {'class': 'flexible-double-column'}):
-            d.decompose()
-        
-        tables = []
-        for h in soup.find_all('table', {'class': 'table-compendium'}):
-            items = []
-            a = h.find('a', {'class': 'tooltip-hover magic-item-tooltip'})
-            if a:
-                items.append(a)
-            else:
-                p = h.find_next_sibling()
-                if not p: continue
-                if p.name not in ['p']: continue
-
-                em = p.find('em')
-                if not em: continue
-
-                for a in em.find_all('a', {'class': 'tooltip-hover magic-item-tooltip'}):
-                    items.append(a)
-            
-            if not items:
-                continue
-
-            # extract all lines between this <h3> and the next one
-            s = BeautifulSoup(str(h), 'html.parser')
-            for n in h.find_next_siblings():
-                if n.name in ['h1','h2','h3']:
-                    break
-                elif len(n.get_text('', strip=True)) > 0:
-                    s.append('\n')
-                    s.append(n)
-            
-            """for a in items:
-                tables += [TableReference({
-                    'id': a['href'][13:],
-                    'name': h.get_text('', strip=True),
-                    'modified': self.modified,
-                    'path': self.path,
-                    'html': str(s),
-                })]"""
-
-        return tables
-    
-    def has_spells( self ):
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin, 'html.parser')
-
-        for h in soup.find_all('h3'):
-            a = h.find('a', {'class': 'tooltip-hover spell-tooltip'})
-            if a: 
-                return True
-        return False
+    def get_spells(self, **kwargs):
+        return self.get_content(types=['spell'], **kwargs)
     
     def to_json(self, **kwargs):
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)

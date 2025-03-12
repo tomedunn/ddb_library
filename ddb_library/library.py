@@ -206,100 +206,46 @@ class Library:
         else:
             return [book.name for book in self.books]
     
-    def get_magic_items(self, **kwargs):
-        magic_items = []
+    def get_content(self, **kwargs):
+        lib_content = []
         if kwargs.get('acronyms', None):
             for acronym in kwargs['acronyms']:
                 book = self.book(acronym=acronym)
                 if not book: continue
                 if not book.is_owned_content(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                magic_items += book.get_magic_items()
+                lib_content += book.get_content(**kwargs)
         else:
             for name in kwargs.get('names', self.get_book_names()):
                 book = self.book(name)
                 if not book.is_owned_content(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                magic_items += book.get_magic_items()
+                lib_content += book.get_content(**kwargs)
 
-        # merge magic_items found in multiple books
-        magic_item_dict = {}
-        for magic_item in magic_items:
-            if magic_item.id in magic_item_dict:
-                magic_item_dict[magic_item.id].sources += magic_item.sources
-                magic_item_dict[magic_item.id].modified = magic_item.modified
-                magic_item_dict[magic_item.id].path = magic_item.path
-                magic_item_dict[magic_item.id].html = magic_item.html
+        # merge content found in multiple books
+        content_dict = {}
+        for content in lib_content:
+            if content.id in content_dict:
+                content_dict[content.id].sources += content.sources
+                content_dict[content.id].modified = content.modified
+                content_dict[content.id].path = content.path
+                content_dict[content.id].html = content.html
                 
             else:
-                magic_item_dict[magic_item.id] = magic_item
+                content_dict[content.id] = content
 
-        magic_items = [v for v in magic_item_dict.values()]
+        lib_content = [v for v in content_dict.values()]
         
-        return magic_items
+        return lib_content
+    
+    def get_magic_items(self, **kwargs):
+        return self.get_content(types=['magic item'], **kwargs)
     
     def get_monsters(self, **kwargs):
-        monsters = []
-        if kwargs.get('acronyms', None):
-            for acronym in kwargs['acronyms']:
-                book = self.book(acronym=acronym)
-                if not book: continue
-                if not book.is_owned_content(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                monsters += book.get_monsters()
-        else:
-            for name in kwargs.get('names', self.get_book_names()):
-                book = self.book(name)
-                if not book.is_owned_content(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                monsters += book.get_monsters()
-
-        # merge monsters found in multiple books
-        monster_dict = {}
-        for monster in monsters:
-            if monster.id in monster_dict:
-                monster_dict[monster.id].sources += monster.sources
-                monster_dict[monster.id].modified = monster.modified
-                monster_dict[monster.id].path = monster.path
-                monster_dict[monster.id].html = monster.html
-                
-            else:
-                monster_dict[monster.id] = monster
-
-        monsters = [v for v in monster_dict.values()]
-        
-        return monsters
+        return self.get_content(types=['monster'], **kwargs)
     
     def get_spells(self, **kwargs):
-        spells = []
-        if kwargs.get('acronyms', None):
-            for acronym in kwargs['acronyms']:
-                book = self.book(acronym=acronym)
-                if not book: continue
-                if not book.is_owned_content(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                spells += book.get_spells()
-        else:
-            for name in kwargs.get('names', self.get_book_names()):
-                book = self.book(name)
-                if not book.is_owned_content(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                spells += book.get_spells()
-
-        # merge spells found in multiple books
-        spell_dict = {}
-        for spell in spells:
-            if spell.id in spell_dict:
-                spell_dict[spell.id].sources += spell.sources
-                spell_dict[spell.id].modified = spell.modified
-                spell_dict[spell.id].path = spell.path
-                spell_dict[spell.id].html = spell.html
-            else:
-                spell_dict[spell.id] = spell
-
-        spells = [v for v in spell_dict.values()]
-        
-        return spells
+        return self.get_content(types=['spell'], **kwargs)
 
     def size(self):
         """Returns the number of books in the library.

@@ -121,12 +121,12 @@ class Book:
         
         return '\n'.join(html_start + book_html + html_end)
     
-    def get_magic_items(self):
-        magic_items = []
+    def get_content(self, **kwargs):
+        book_content = []
         for page in self.pages:
-            page_magic_items = page.get_magic_items()
-            for magic_item in page_magic_items:
-                magic_item.sources = [{
+            page_content = page.get_content(**kwargs)
+            for content in page_content:
+                content.sources = [{
                     "name": self.name,
                     "acronym": self.acronym,
                     "url": self.url,
@@ -138,48 +138,17 @@ class Book:
                     }
                 }]
             
-            magic_items += page_magic_items
-        return magic_items
+            book_content += page_content
+        return book_content
     
-    def get_monsters(self):
-        monsters = []
-        for page in self.pages:
-            mons = page.get_monsters()
-            for monster in mons:
-                monster.sources = [{
-                    "name": self.name,
-                    "acronym": self.acronym,
-                    "url": self.url,
-                    "path": self.path,
-                    "page": {
-                        "name": page.name,
-                        "url": page.url,
-                        "path": page.path,
-                    }
-                }]
-            
-            monsters += mons
-        return monsters
+    def get_magic_items(self, **kwargs):
+        return self.get_content(types=['magic item'], **kwargs)
     
-    def get_spells(self):
-        spells = []
-        for page in self.pages:
-            page_spells = page.get_spells()
-            for spell in page_spells:
-                spell.sources = [{
-                    "name": self.name,
-                    "acronym": self.acronym,
-                    "url": self.url,
-                    "path": self.path,
-                    "page": {
-                        "name": page.name,
-                        "url": page.url,
-                        "path": page.path,
-                    }
-                }]
-            
-            spells += page_spells
-        return spells
+    def get_monsters(self, **kwargs):
+        return self.get_content(types=['monster'], **kwargs)
+    
+    def get_spells(self, **kwargs):
+        return self.get_content(types=['spell'], **kwargs)
     
     def is_owned_content(self):
         return self.owned_content
