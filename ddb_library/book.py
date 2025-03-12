@@ -134,8 +134,7 @@ class Book:
                     "page": {
                         "name": page.name,
                         "url": page.url,
-                        "relative_url": page.relative_url,
-                        "path": page.path
+                        "path": page.path,
                     }
                 }]
             
@@ -155,8 +154,7 @@ class Book:
                     "page": {
                         "name": page.name,
                         "url": page.url,
-                        "relative_url": page.relative_url,
-                        "path": page.path
+                        "path": page.path,
                     }
                 }]
             
@@ -176,8 +174,7 @@ class Book:
                     "page": {
                         "name": page.name,
                         "url": page.url,
-                        "relative_url": page.relative_url,
-                        "path": page.path
+                        "path": page.path,
                     }
                 }]
             
