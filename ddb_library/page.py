@@ -25,21 +25,23 @@ class Page:
         """Copies the contents of this file to a new location."""
 
         dryrun = kwargs.get('dryrun', False)
+        logging = kwargs.get('logging', False)
 
         if not self.file_exists():
-            raise FileNotFoundError("File does not exist.")
+            raise FileNotFoundError("file does not exist")
         
         # destination folder
         dirname = os.path.dirname(path)
         if not os.path.isdir(dirname):
+            if logging: print(f'Creating directory "{path}".')
             if dryrun:
-                print(f'Directory "{dirname}" not found.')
-                print(f'Creating directory "{dirname}".')
+                print(f'os.mkdir({dirname})')
             else:
                 os.mkdir(dirname)
         
+        if logging: print(f'Copying contents of "{self.path}" to "{path}".')
         if dryrun:
-            print(f'Copying contents of "{self.path}" to "{path}".')
+            print(f'cp "{self.path}" "{path}"')
         else:
             html_text = self.get_html(**kwargs)
             with open(path, 'w') as fout:
@@ -141,8 +143,7 @@ class Page:
         return self.get_content(types=['magic item'], **kwargs)
     
     def get_meta_data( self ):
-        with open(self.path, 'r') as fin:
-            soup = BeautifulSoup(fin.read(), 'html.parser')
+        soup = BeautifulSoup(self.get_html(), 'html.parser')
 
         meta_data = {}
         for m in soup.find_all('meta'):

@@ -75,15 +75,16 @@ class Book:
         """Copies the contents of this folder to a new location."""
 
         dryrun = kwargs.get('dryrun', False)
+        logging = kwargs.get('logging', True)
 
         if not self.folder_exists():
             raise FileNotFoundError("Folder does not exist.")
         
         # destination folder
         if not os.path.isdir(path):
+            if logging: print(f'Creating directory "{path}".')
             if dryrun:
-                print(f'Directory "{path}" not found.')
-                print(f'Creating directory "{path}".')
+                print(f'os.mkdir({path})')
             else:
                 os.mkdir(path)
         
@@ -159,7 +160,7 @@ class Book:
 
     def load_folder(self, **kwargs):
         if not self.folder_exists():
-            raise FileNotFoundError("Folder doesn't exist")
+            raise FileNotFoundError("folder doesn't exist")
         
         # add a page for each html file in folder
         for (dirpath, dirnames, filenames) in os.walk(self.path):

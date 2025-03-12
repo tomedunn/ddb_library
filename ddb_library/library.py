@@ -81,14 +81,17 @@ class Library:
     
     def copy(self, path, **kwargs):
         """Copies the contents of this library to a new location."""
-
+        
         dryrun = kwargs.get('dryrun', False)
+        logging = kwargs.get('logging', True)
+
+        if logging: print(f'Copying library contents to "{path}".')
 
         # destination folder
         if not os.path.isdir(path):
+            if logging: print(f'Creating directory "{path}".')
             if dryrun:
-                print(f'Directory "{path}" not found.')
-                print(f'Creating directory "{path}".')
+                print(f'os.mkdir({path})')
             else:
                 os.mkdir(path)
         
@@ -100,16 +103,18 @@ class Library:
         # sources folder
         sources_path = os.path.join(path, 'sources')
         if not os.path.isdir(sources_path):
+            if logging: print(f'Creating directory "{sources_path}".')
             if dryrun:
-                print(f'Directory "{sources_path}" not found.')
-                print(f'Creating directory "{sources_path}".')
+                print(f'os.mkdir({sources_path})')
             else:
                 os.mkdir(sources_path)
 
+        if logging: print(f'Copying books.')
         for book in self.books:
             if not book.validate(): continue
             if not book.name in kwargs.get('book_names', self.get_book_names()): continue
             book_path = os.path.join(path, 'sources', os.path.basename(book.path))
+            if logging: print(f' - Copying book "{book.name}".')
             book.copy(book_path, **kwargs)
 
         return self
@@ -117,7 +122,7 @@ class Library:
     def load_books(self, **kwargs):
         """Loads each book in library.
         """
-        logging = kwargs.get('logging', False)
+        logging = kwargs.get('logging', True)
         skip_books = kwargs.get('skip_books', [])
 
         if logging: print('Loading books.')
@@ -130,15 +135,7 @@ class Library:
                 book.load_folder()
                 if logging: print('success.')
             except FileNotFoundError as e:
-                if logging: print(e)
-
-            """if book.validate():
-                if logging: print('success.')
-            else:
-                if logging: print('ERROR!')
-                for page in book.pages:
-                    if not page.validate():
-                        if logging: print(f'   * Unable to find file for "{page.url}".')"""
+                if logging: print(f'{e}.')
         
         if logging: print('Books loaded.')
         return self
@@ -195,7 +192,8 @@ class Library:
             ), **kwargs)
         
         if logging: print(f'success.')
-        if logging: print(f'Found {self.size()} books.')
+        if logging: print(f'Found {self.size()} books in sources.')
+        if logging: print(f'Found {len([book.name for book in self.books if book.owned_content])} owned books.')
         return self
 
     def get_book_names(self, **kwargs):
@@ -207,20 +205,29 @@ class Library:
             return [book.name for book in self.books]
     
     def get_content(self, **kwargs):
+        logging = kwargs.get('logging', True)
+        content_types = kwargs.get('types', ['magic item','monster','spell'])
+        if logging: print('Extracting '+ ', '.join(content_types)+' content from library.')
         lib_content = []
         if kwargs.get('acronyms', None):
             for acronym in kwargs['acronyms']:
                 book = self.book(acronym=acronym)
                 if not book: continue
                 if not book.is_owned_content(): continue
+                if not book.validate(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                lib_content += book.get_content(**kwargs)
+                content = book.get_content(**kwargs)
+                if logging: print(f' - {book.name}: {len(content)} items found')
+                lib_content += content
         else:
             for name in kwargs.get('names', self.get_book_names()):
                 book = self.book(name)
                 if not book.is_owned_content(): continue
+                if not book.validate(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                lib_content += book.get_content(**kwargs)
+                content = book.get_content(**kwargs)
+                if logging: print(f' - {book.name}: {len(content)} items found')
+                lib_content += content
 
         # merge content found in multiple books
         content_dict = {}
@@ -246,6 +253,14 @@ class Library:
     
     def get_spells(self, **kwargs):
         return self.get_content(types=['spell'], **kwargs)
+
+    def save_json(self, **kwargs):
+        path = kwargs.get('path', self.path)
+        file = kwargs.get('file', 'library.json')
+        file_path = os.path.join(path, file)
+        print(f'Saving library to {file_path}.')
+        with open(file_path, 'w') as fout:
+            json.dump(json.loads(self.to_json()), fout, indent=4)
 
     def size(self):
         """Returns the number of books in the library.
