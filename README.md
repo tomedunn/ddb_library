@@ -4,7 +4,7 @@ This module provides tools for managing and parsing books from D&D Beyond in htm
 
 ## File structure
 
-To make use of this module, you'll need to download html files from DnD Beyond and store them locally on your computer in the following format.
+To make use of this module, you'll need to download html files from D&D Beyond and store them locally on your computer in the following format.
 
 ```
 library folder
@@ -28,7 +28,7 @@ library folder
 
 Within the library's root folder there should be a `sources.html` files as well as a `sources` folder that contains a subfolder for each book, containing the book's pages saved as html files.
 
-The `sources.html` comes from [https://www.dndbeyond.com/sources](https://www.dndbeyond.com/sources) and the folder for each book is based on the last part of the book's url on DnD Beyond. 
+The `sources.html` comes from [https://www.dndbeyond.com/sources](https://www.dndbeyond.com/sources) and the folder for each book is based on the last part of the book's url on D&D Beyond. 
 
 For example, the url for the _D&D Free Rules (2024)_ is [https://www.dndbeyond.com/sources/dnd/free-rules](https://www.dndbeyond.com/sources/dnd/free-rules) and so the folder for it is `./sources/free-rules`.
 
@@ -153,7 +153,7 @@ content = lib.get_content(types=['magic items','spells'])
 In all cases, what's returned is a list of content with each piece of content stored as an instance of the `ContentReference` class, which contains the following information:
 
  * **name.** the name of the content.
- * **id.** a string used by DnD Beyond when referring to the content.
+ * **id.** a string used by D&D Beyond when referring to the content.
  * **type.** either `magic item`, `monster`, or `spell`.
  * **path.** the location of the file the content was pulled from.
  * **modified.** when that file was last modified.
