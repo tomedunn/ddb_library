@@ -7,6 +7,7 @@ This Python module provides tools for managing and parsing books from D&D Beyond
 ## Table of Contents
 
 - [Installation](#installation)
+  - [Dependencies](#dependencies)
 - [File Structure](#file-structure)
 - [Creating a New Library](#creating-a-new-library)
 - [Saving a Library](#saving-a-library)
@@ -29,6 +30,11 @@ sys.path.append('path to directory containing ddb_library')
 
 import ddb_library
 ```
+
+### Dependencies
+This module uses the following external Python libraries, which will need to be installed locally in order to work.
+
+ * [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 
 ## File Structure
 
