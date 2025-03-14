@@ -1,8 +1,36 @@
+<!-- omit in toc -->
 # ddb_library
 
-This module provides tools for managing and parsing books from D&D Beyond in html form.
+This Python module provides tools for managing and parsing books from D&D Beyond in html form.
 
-## File structure
+<!-- omit in toc -->
+## Table of Contents
+
+- [Installation](#installation)
+- [File Structure](#file-structure)
+- [Creating a New Library](#creating-a-new-library)
+- [Saving a Library](#saving-a-library)
+- [Loading an Existing Library](#loading-an-existing-library)
+- [Updating an Existing Library](#updating-an-existing-library)
+- [Copying an Existing Library](#copying-an-existing-library)
+- [Extracting Book Contents](#extracting-book-contents)
+
+## Installation
+To use this module, download the `ddb_library` folder from this repository to your local machine.
+
+If you are working in the same directory that folder is saved in then you should be able to load it directly. 
+```python
+import ddb_library
+```
+Otherwise, if the folder is save in a different location, you'll need to add the path to its location to Python.
+```python
+import sys
+sys.path.append('path to directory containing ddb_library')
+
+import ddb_library
+```
+
+## File Structure
 
 To make use of this module, you'll need to download html files from D&D Beyond and store them locally on your computer in the following format.
 
@@ -36,7 +64,7 @@ The file `sources.html` can have a different name, but that name will need to be
 
 In rare cases, a book will also need sub-folders to hold component books or individual adventures. The names of these sub-folders must also follow the urls for those pages. For example, the url for the adventure "The Sunless Citadel" from _[Tales from the Yawning Portal](https://www.dndbeyond.com/sources/dnd/tftyp)_ is [https://www.dndbeyond.com/sources/dnd/tftyp/a1/the-sunless-citadel](https://www.dndbeyond.com/sources/dnd/tftyp/a1/the-sunless-citadel). In this case, the folder for the book would be `./sources/tftyp` and the sub-folder for the adventure would be `./sources/tftyp/a1`.
 
-## Creating a new library
+## Creating a New Library
 
 A new library can be created in the following way, where `path='./example` designates the location of the library `sources` folder and sources file `sources_file='Sources - D&D Beyond.html'`.
 
@@ -49,6 +77,7 @@ lib = dbl.Library(
     sources_file='Sources - D&D Beyond.html',
 )
 ```
+
 If `sources_file` is not provided then the library will use a default value of `sources.html`.
 
 An initial list of books can be added by loading the given sources file.
@@ -65,19 +94,26 @@ lib.load_books()
 
 These steps can take a minute or two for libraries with a large number of books stored in them.
 
-Finally, the constructed library can be stored as a `.json` file in the library's directory. The default name of the file is `library.json`.
+## Saving a Library
+A library can be saved locally using the following command.
 
 ```python
 lib.save_json()
 ```
 
-This allows the library to be loaded more quickly in the future as follows.
+This stores the library as a `.json` file in the library's root directory. The default name of the file is `library.json`, but a different name can be specified if desired.
+
+## Loading an Existing Library
+
+A library that's been saved as a `.json` file can be loaded as follows.
 
 ```python
 lib = dbl.Library().from_json_file('./example/library.json')
 ```
 
-## Updating an existing library
+For large libraries, this is considerably faster than building the library from scratch each time.
+
+## Updating an Existing Library
 If the html files in an existing library are updated, or if new books are added, the library can be updated as follows.
 
 ```python
@@ -87,7 +123,7 @@ lib.update()
 
 This will check each file to see if it has been modified since the last time recorded in `library.json`. If any of the files in a book have been updated then the whole book is reconstructed. Remember to save the library after updating.
 
-## Copying an existing library
+## Copying an Existing Library
 
 An existing library can be copied to a new location as shown in the following example.
 
@@ -129,7 +165,7 @@ lib.copy('./example_copy', **options)
 
 The library can also be copied to its own directory. This is only practically useful when combined with formatting options, like the ones in the above example. As a point of caution, it's best to avoid this until you know what formatting options work best for you.
 
-## Extracting book contents
+## Extracting Book Contents
 
 This module contains functions for locating and extracting different kinds of content from an existing library, individual books, or pages. Currently three kinds of content are supported: magic items, monsters, and spells.
 
