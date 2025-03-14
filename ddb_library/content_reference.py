@@ -18,5 +18,9 @@ class ContentReference:
     def get_html( self ):
         return self.html
     
+    def save_html(self, path):
+        with open(path, 'w') as fout:
+            fout.write(self.html)
+    
     def to_json(self, **kwargs):
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)

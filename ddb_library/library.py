@@ -19,6 +19,8 @@ def create_book_acronym(name):
 class Library:
     def __init__(self, *args, **kwargs):
         d = args[0] if args else kwargs
+        if not d: return
+
         self.name = d.get('name', None)
         self.path = d.get('path', None)
         if 'sources' in d:
@@ -30,6 +32,12 @@ class Library:
             })
         self.books = []
         self.add_books(d.get('books', []))
+
+    @classmethod
+    def from_json_file(cls, json_path):
+        with open(json_path, 'r') as fin:
+            json_dict = json.load(fin)
+        return cls(json_dict)
 
     def __repr__(self):
         return f'{self.__dict__}'
