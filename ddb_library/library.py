@@ -6,16 +6,6 @@ import json
 import re
 import os
 
-def create_book_acronym(name):
-    """Returns and acronym from the given book title.
-    """
-    m = re.search(r'(?P<title>[^\(]+)(?P<year>\(\d+\))?$', name, re.IGNORECASE)
-    
-    acronym = ''.join([token[0:1] for token in m.group('title').split(' ')])
-    year = '' if not m.group('year') else ' ' + m.group('year')
-
-    return acronym + year
-
 class Library:
     def __init__(self, *args, **kwargs):
         d = args[0] if args else kwargs
@@ -51,11 +41,11 @@ class Library:
         elif type(book) is not Book:
             print('unable to process book')
         
-        if not self.book(name=book.name):
+        if not self.book(path=book.path):
             self.books.append(book)
         elif replace:
             for i in range(len(self.books)):
-                if book.name == self.books[i].name:
+                if book.path == self.books[i].path:
                     self.books[i] = book
 
         return self
@@ -80,10 +70,13 @@ class Library:
     def book(self, *args, **kwargs):
         name = args[0] if args else kwargs.get('name', None)
         acronym = kwargs.get('acronym', None)
+        path = kwargs.get('path', None)
         for book in self.books:
             if name and book.name == name:
                 return book
             elif acronym and book.acronym == acronym:
+                return book
+            elif path and book.path == path:
                 return book
         return None
     
@@ -157,48 +150,25 @@ class Library:
     def load_sources(self, **kwargs):
         """loads books from a local sources.html file downloaded from DDB.
         """
-        RE_URL = re.compile(
-            r'(?P<url>'
-                r'(?P<root_url>https://[^#]+\.com)?'
-                r'(?P<url_path>[^#]+)'
-            r')'
-            r'(?P<tag>#.+)?'
-            , re.IGNORECASE)
         
         logging = kwargs.get('logging', True)
 
         if logging: print('Loading sources', end=' ... ')
 
-        if not self.sources.file_exists(): return
-        soup = BeautifulSoup(self.sources.get_html(), 'html.parser')
-
-        for a in soup.find_all('a', class_='sources-listing--item'):
-            # get book url and convert to a local path
-            url = 'https://www.dndbeyond.com/' + a['href']
-            url_path = f'{self.path}' + RE_URL.match(url).group('url_path')
-            path = re.sub(r'compendium\/(rules|adventures)|sources\/dnd', 'sources', str(url_path))
-
-            # determine if the book is owned and then remove that data
-            # to make extracting the book name easier
-            matches = a.findAll('span', class_='owned-content')
-            owned_content = True if matches else False
-            if matches:
-                for match in a.findAll('span', class_='owned-content'):
-                    match.decompose()
-            
-            # get the book name
-            name = a.get_text('', strip=True)
-            acronym = create_book_acronym(name)
-
-            # construct the book
-            self.add_book(dict(
-                name=name, 
-                acronym=acronym, 
-                url=url, 
-                path=path,
-                owned_content=owned_content
-            ), **kwargs)
+        books = self.sources.load_books()
+        for book in books:
+            tbook = self.book(path=book['path'])
+            if tbook:
+                tbook.update(**book)
+            else:
+                self.add_book(book, **kwargs)
+                """tbook = self.book(path=book['path'])
+                try:
+                    tbook.load_folder()
+                except FileNotFoundError as e:
+                    pass"""
         
+        self.sources.update()
         if logging: print(f'success.')
         if logging: print(f'Found {self.size()} books in sources.')
         if logging: print(f'Found {len([book.name for book in self.books if book.owned_content])} owned books.')
@@ -278,12 +248,16 @@ class Library:
     def to_json(self, **kwargs):
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
-    def update(self):
+    def update(self, **kwargs):
+        logging = kwargs.get('logging', False)
+
         if self.sources.update_available():
+            if logging: print(f'Updating sources.')
             self.load_sources(replace=False)
         
         for book in self.books:
             if book.update_available():
+                if logging: print(f'Updating book "{book.name}".')
                 book.update()
         
         return self

@@ -5,6 +5,16 @@ import json
 import os
 import re
 
+def create_book_acronym(name):
+    """Returns and acronym from the given book title.
+    """
+    m = re.search(r'(?P<title>[^\(]+)(?P<year>\(\d+\))?$', name, re.IGNORECASE)
+    
+    acronym = ''.join([token[0:1] for token in m.group('title').split(' ')])
+    year = '' if not m.group('year') else ' ' + m.group('year')
+
+    return acronym + year
+
 class Sources:
     def __init__(self, *args, **kwargs):
         d = args[0] if args else kwargs
@@ -13,7 +23,7 @@ class Sources:
         self.path = d.get('path', './sources.html')
         self.url = d.get('url', 'https://www.dndbeyond.com/sources')
         self.modified = d.get('modified', None)
-        self.update()
+        if not self.modified: self.update()
 
     def __repr__(self):
         return f'{self.__dict__}'
@@ -61,6 +71,50 @@ class Sources:
 
         return process_html(html_text, **kwargs)
     
+    def load_books(self):
+        """loads books from a local sources.html file downloaded from DDB.
+        """
+        RE_URL = re.compile(
+            r'(?P<url>'
+                r'(?P<root_url>https://[^#]+\.com)?'
+                r'(?P<url_path>[^#]+)'
+            r')'
+            r'(?P<tag>#.+)?'
+            , re.IGNORECASE)
+
+        if not self.file_exists(): return
+        soup = BeautifulSoup(self.get_html(), 'html.parser')
+
+        books = []
+        for a in soup.find_all('a', class_='sources-listing--item'):
+            # get book url and convert to a local path
+            url = 'https://www.dndbeyond.com/' + a['href']
+            url_path = f'{os.path.dirname(self.path)}' + RE_URL.match(url).group('url_path')
+            path = re.sub(r'compendium\/(rules|adventures)|sources\/dnd', 'sources', str(url_path))
+
+            # determine if the book is owned and then remove that data
+            # to make extracting the book name easier
+            matches = a.findAll('span', class_='owned-content')
+            owned_content = True if matches else False
+            if matches:
+                for match in a.findAll('span', class_='owned-content'):
+                    match.decompose()
+            
+            # get the book name
+            name = a.get_text('', strip=True)
+            acronym = create_book_acronym(name)
+
+            # construct the book
+            books.append(dict(
+                name=name, 
+                acronym=acronym, 
+                url=url, 
+                path=path, 
+                owned_content=owned_content
+            ))
+        
+        return books
+
     def to_json(self, **kwargs):
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     

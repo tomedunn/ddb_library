@@ -285,12 +285,22 @@ class Book:
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update(self, **kwargs):
+        self.name = kwargs.get('name', self.name)
+        self.acronym = kwargs.get('acronym', self.acronym)
+        self.url = kwargs.get('url', self.url)
+        self.owned_content = kwargs.get('owned_content', self.owned_content)
+        self.path = kwargs.get('path', self.path)
+        
         if self.table_of_contents and self.table_of_contents.update_available():
             self.load_toc()
 
-        for page in self.pages:
-            if page.update_available():
-                page.update()
+        if self.pages:
+            for page in self.pages:
+                if page.update_available():
+                    page.update()
+        elif self.folder_exists():
+            if len(os.listdir(self.path)) > 0:
+                self.load_folder()
         
         return self
 
@@ -301,9 +311,14 @@ class Book:
         if self.table_of_contents and self.table_of_contents.update_available():
             return True
         
-        for page in self.pages:
-            if page.update_available():
+        if self.pages:
+            for page in self.pages:
+                if page.update_available():
+                    return True
+        elif self.folder_exists():
+            if len(os.listdir(self.path)) > 0:
                 return True
+        
         return False
 
     def validate(self):
