@@ -304,21 +304,28 @@ class Book:
         
         return self
 
-    def update_available(self):
+    def update_available(self, **kwargs):
         """Returns True if any of the page files for this book have been 
         modified since this was created or last updated.
         """
+        logging = kwargs.get('logging', False)
+
         if self.table_of_contents and self.table_of_contents.update_available():
+            if logging: print('Update available - table of contents')
             return True
         
         if self.pages:
             for page in self.pages:
                 if page.update_available():
+                    if logging: print('Update available - pages')
                     return True
+        
         elif self.folder_exists():
             if len(os.listdir(self.path)) > 0:
+                if logging: print('Update available - folder')
                 return True
         
+        if logging: print('Update not available')
         return False
 
     def validate(self):

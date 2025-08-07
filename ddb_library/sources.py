@@ -88,6 +88,7 @@ class Sources:
         books = []
         for a in soup.find_all('a', class_='sources-listing--item'):
             # get book url and convert to a local path
+            if not a['href']: continue
             url = 'https://www.dndbeyond.com/' + a['href']
             url_path = f'{os.path.dirname(self.path)}' + RE_URL.match(url).group('url_path')
             path = re.sub(r'compendium\/(rules|adventures)|sources\/dnd', 'sources', str(url_path))
