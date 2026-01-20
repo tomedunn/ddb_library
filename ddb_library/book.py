@@ -156,7 +156,9 @@ class Book:
 
     def last_modified(self):
         lm = 0 if not self.table_of_contents else self.table_of_contents.modified
-        return max(lm, max([p.modified for p in self.pages]))
+        if self.pages:
+            lm = max(lm, max([p.modified for p in self.pages]))
+        return lm
 
     def load_folder(self, **kwargs):
         if not self.folder_exists():
@@ -292,6 +294,7 @@ class Book:
         self.path = kwargs.get('path', self.path)
         
         if self.table_of_contents and self.table_of_contents.update_available():
+            self.table_of_contents.update()
             self.load_toc()
 
         if self.pages:
