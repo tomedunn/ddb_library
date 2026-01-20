@@ -21,17 +21,28 @@ def cleanup_div(soup):
             data.decompose()
     
     # unwrap <div> if its only tag is another <div>
-    for data in soup(['div']):
+    for tag in soup.find_all('div'):
+        if len([c for c in tag.contents if c.name]) != 1: continue
+        for c in tag.contents:
+            if c.name == 'div':
+                tag.unwrap()
+                break
+
+    """for data in soup(['div']):
         if len([c for c in data.contents if c.name]) == 1:
             for c in data.contents:
                 if c.name == 'div':
                     data.unwrap()
-                    break
+                    break"""
     
     # if <div> has only text inside it, put it all on one line.
-    for d in soup('div'):
+    """for d in soup('div'):
         if len([c for c in d.contents if c.name != None]) == 0:
-            d.string = re_reps.sub(' ', d.text.strip())
+            d.string = re_reps.sub(' ', d.text.strip())"""
+    
+    for tag in soup.find_all('div'):
+        if len([c for c in tag.contents if c.name != None]) == 0:
+            tag.string = re_reps.sub(' ', tag.text.strip())
     
     return soup
 
