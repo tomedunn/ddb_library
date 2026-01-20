@@ -223,6 +223,32 @@ class Library:
         
         return lib_content
     
+    def get_encounters(self, **kwargs):
+        logging = kwargs.get('logging', True)
+        if logging: print('Extracting encounter content from library.')
+        lib_content = []
+        if kwargs.get('acronyms', None):
+            for acronym in kwargs['acronyms']:
+                book = self.book(acronym=acronym)
+                if not book: continue
+                if not book.is_owned_content(): continue
+                if not book.validate(): continue
+                if book.name in kwargs.get('skip_books', []): continue
+                content = book.get_encounters(**kwargs)
+                if logging: print(f' - {book.name}: {len(content)} items found')
+                lib_content += content
+        else:
+            for name in kwargs.get('names', self.get_book_names()):
+                book = self.book(name)
+                if not book.is_owned_content(): continue
+                if not book.validate(): continue
+                if book.name in kwargs.get('skip_books', []): continue
+                content = book.get_encounters(**kwargs)
+                if logging: print(f' - {book.name}: {len(content)} items found')
+                lib_content += content
+        
+        return lib_content
+    
     def get_magic_items(self, **kwargs):
         return self.get_content(types=['magic item'], **kwargs)
     

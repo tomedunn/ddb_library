@@ -142,6 +142,17 @@ class Book:
             book_content += page_content
         return book_content
     
+    def get_encounters(self, **kwargs):
+        encounters = []
+        for page in self.pages:
+            page_encounters = page.get_encounters(**kwargs)
+            for encounter in page_encounters:
+                encounter['book'] = self.name
+                encounter['book_path'] = self.name + '; ' + encounter['book_path']
+            encounters += page_encounters
+
+        return encounters
+
     def get_magic_items(self, **kwargs):
         return self.get_content(types=['magic item'], **kwargs)
     

@@ -138,6 +138,118 @@ class Page:
                     })]
         
         return content
+    
+    def get_encounters(self, **kwargs):
+        TEXT_TO_NUMBER = {
+            'one': 1,
+            'two': 2,
+            'three': 3,
+            'four': 4,
+            'five': 5,
+            'six': 6,
+            'seven': 7,
+            'eight': 8,
+            'nine': 9,
+            'ten': 10,
+            'eleven': 11,
+            'twelve': 12,
+            'dozen': 12,
+            'thirteen': 13,
+            'fourteen': 14,
+            'fifteen': 15,
+            'sixteen': 16,
+            'seventeen': 17,
+            'eighteen': 18,
+            'nineteen': 19,
+            'twenty': 20,
+            '.': 1,
+        }
+        
+        html_options = kwargs.get('html_options', {})
+        soup = BeautifulSoup(self.get_html(**html_options), 'html.parser')
+
+        # remove some annoying formatting stuff
+        for d in soup.find_all('div', {'class': 'flexible-double-column'}):
+            d.decompose()
+        
+        content = []
+        headings = {
+            'h1': self.name,
+            'h2': None,
+            'h3': None,
+            'h4': None,
+            'h5': None,
+        }
+        for p in soup.find_all(['h2','h3','h4','h5','p']):
+            """
+            Maybe include:
+              <ul>
+              <li>
+            """
+            if p.name in ['h2','h3','h4','h5']:
+                for h in ['h5','h4','h3','h2']:
+                    if h == p.name:
+                        #headings[h] = p['id']
+                        headings[h] = p.get_text('', strip=True)
+                        break
+                    else:
+                        headings[h] = None
+                continue
+
+            if 'Stat-Block-Styles_Stat-Block-Title' in p.get('class', ''):
+                continue
+            
+            monsters = []
+            number = 1
+            monster = ''
+            for c in p.contents:
+                """
+                Dungeon of the Mad Mage has some content marked like this ... sigh ...
+                <span class="Serif-Character-Style_Bold-Serif plural-monster-tooltip">
+                    <a class="tooltip-hover monster-tooltip">
+                        thugs
+                    </a>
+                </span>
+                """
+                if c.name == 'a':
+                    if 'monster-tooltip' not in c.get('class', []): continue
+                    monster = c['href'].split('/')[-1]
+                    m = re.match(r'^(?P<id_num>\d+)-.*$', monster)
+                    if not m: continue
+                    monsters += [(number, monster)]
+                    number = 1
+                elif not c.name:
+                    m = re.match(r'.*\b(?P<number>\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\.)\b', c.get_text('', strip=False), re.IGNORECASE)
+                    if not m: continue
+                    number = m['number'].lower()
+                    if re.match('\d+', number):
+                        number = int(number)
+                    else:
+                        number = TEXT_TO_NUMBER.get(number, 1)
+                elif c.name == 'span':
+                    if 'plural-monster-tooltip' in c.get('class', ''):
+                        if 'monster-tooltip' not in c.a.get('class', []): continue
+                        monster = c.a['href'].split('/')[-1]
+                        m = re.match(r'^(?P<id_num>\d+)-.*$', monster)
+                        if not m: continue
+                        monsters += [(number, monster)]
+                        number = 1
+
+                else:
+                    pass
+
+            if monsters:
+                content += [{
+                    'type': 'encounter',
+                    'modified': self.modified,
+                    'book': None,
+                    'path': self.path,
+                    'book_path': '; '.join([v for v in headings.values() if v]),
+                    'monsters': monsters,
+                    'text': p.get_text('', strip=False),
+                }]
+        
+        return content
 
     def get_magic_items(self, **kwargs):
         return self.get_content(types=['magic item'], **kwargs)
