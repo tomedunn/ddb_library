@@ -84,8 +84,40 @@ class Sources:
 
         if not self.file_exists(): return
         soup = BeautifulSoup(self.get_html(), 'html.parser')
-
+        
         books = []
+
+        # new library format
+        div = soup.find('div', {'id': 'S:0'})
+        if div:
+            for c in div.find_all('div', {'class': re.compile(r'SourceCard_nameGroup_.*')}):
+                a = c.a
+                p = c.p
+
+                # get book url and convert to a local path
+                if not a['href']: continue
+                url = 'https://www.dndbeyond.com' + a['href']
+                url_path = f'{os.path.dirname(self.path)}' + RE_URL.match(url).group('url_path')
+                path = re.sub(r'compendium\/(rules|adventures)|sources\/dnd', 'sources', str(url_path))
+
+                # determine if the book is owned
+                status = p.get_text('', strip=True)
+                owned_content = status in ['Purchased','Free','Shared with me']
+
+                # get the book name
+                name = a.get_text('', strip=True)
+                acronym = create_book_acronym(name)
+
+                # construct the book
+                books.append(dict(
+                    name=name, 
+                    acronym=acronym, 
+                    url=url, 
+                    path=path, 
+                    owned_content=owned_content
+                ))
+        
+        # old library format
         for a in soup.find_all('a', class_='sources-listing--item'):
             # get book url and convert to a local path
             if not a['href']: continue
