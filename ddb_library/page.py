@@ -69,7 +69,7 @@ class Page:
 
         # remove some annoying formatting stuff
         for d in soup.find_all('div', {'class': 'flexible-double-column'}):
-            d.decompose()
+            d.unwrap()
         
         """tags = [
             ('h2'),
