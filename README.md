@@ -197,7 +197,7 @@ content = lib.get_content()
 
 The content is returned as a `list` with a `dict` for each item containing the following fields:
 
- * **content_type.** either `Magic item`, `monster`, or `spell`.
+ * **content_type.** the type of content from the list above.
  * **modified.** when that file was last modified.
  * **path.** the location of the file the content was pulled from.
  * **html.** a string containing the content's html description.
