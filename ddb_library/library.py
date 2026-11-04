@@ -1,9 +1,8 @@
+from .content_functions import flatten_content
 from .book import Book
-from .sources import Sources
 from .myencoder import MyEncoder
-from bs4 import BeautifulSoup
+from .sources import Sources
 import json
-import re
 import os
 
 class Library:
@@ -183,9 +182,57 @@ class Library:
             return [book.name for book in self.books]
     
     def get_content(self, **kwargs):
-        logging = kwargs.get('logging', True)
-        content_types = kwargs.get('types', ['magic item','monster','spell'])
-        if logging: print('Extracting '+ ', '.join(content_types)+' content from library.')
+        """
+        Extracts content from each book in this library.
+    
+        Parameters
+        ----------
+        content_types : (n) str
+            A list of content types to include in the final output. Allowed content types include `'Encounter'`,
+            `'Figure'`, `'Item'`, `'Magic Item'`, `'Monster'`, `'Spell'`, `'Table'`, `'Treasure'`, and `'Vehicle'`.
+            Default value ``['Encounter','Figure','Item','Magic Item','Monster','Spell','Table','Treasure','Vehicle']``.
+        
+        format : str
+            The format to return the results in. Either `'dict'` for nested dictionaries based on headers, 
+            or `'list'` for a list of contents.
+            Default value `'list'`.
+        
+        html_options : dict
+            Pre-processing options to be passed on to ``self.get_html()``.
+            Default value
+            ```python
+            {
+                'remove_empty_tags': [
+                    'div',
+                ],
+                'remove_tags': [
+                    'footer','header','link','meta','script','style','br',
+                    ('div', {'class': ['Flowchart-Block']}),
+                    ('p', {'class': ['compendium-image-subtitle']}),
+                ],
+                'replace_invisibles': True,
+                'replace_dashes': True,
+                'unwrap_tags': [
+                    'blockquote',
+                    ('div', {'class': None}),
+                    ('div', {'class': ['flexible-double-column']}),
+                    ('div', {'class': ['efota-title','efota-title-text']}),
+                    ('div', {'class': ['table-overflow-wrapper']}),
+                    ('div', {'class': ['red-statblock-text']}),
+                    (['ol','ul']),
+                ],
+            }
+            ```
+        
+        Returns
+        -------
+        content : list
+            Content from the library.
+        """
+        format = kwargs.pop('format', 'list')
+        logging = kwargs.get('logging', False)
+        content_types = kwargs.get('content_types', ['Encounter','Figure','Item','Magic Item','Monster','Spell','Table','Treasure','Vehicle'])
+        if logging: print('Extracting ' + ', '.join(content_types) + ' content from library.')
         lib_content = []
         if kwargs.get('acronyms', None):
             for acronym in kwargs['acronyms']:
@@ -194,69 +241,27 @@ class Library:
                 if not book.is_owned_content(): continue
                 if not book.validate(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                content = book.get_content(**kwargs)
-                if logging: print(f' - {book.name}: {len(content)} items found')
-                lib_content += content
+                if logging: print(f' - "{book.name}" ...', end='')
+                content = book.get_content(**kwargs, format='dict')
+                if logging: print(f' done')
+                lib_content.append(content)
         else:
             for name in kwargs.get('names', self.get_book_names()):
                 book = self.book(name)
                 if not book.is_owned_content(): continue
                 if not book.validate(): continue
                 if book.name in kwargs.get('skip_books', []): continue
-                content = book.get_content(**kwargs)
-                if logging: print(f' - {book.name}: {len(content)} items found')
-                lib_content += content
+                if logging: print(f' - "{book.name}" ...', end='')
+                content = book.get_content(**kwargs, format='dict')
+                if logging: print(f' done')
+                lib_content.append(content)
 
-        # merge content found in multiple books
-        content_dict = {}
-        for content in lib_content:
-            if content.id in content_dict:
-                content_dict[content.id].sources += content.sources
-                content_dict[content.id].modified = content.modified
-                content_dict[content.id].path = content.path
-                content_dict[content.id].html = content.html
-                
-            else:
-                content_dict[content.id] = content
-
-        lib_content = [v for v in content_dict.values()]
-        
-        return lib_content
-    
-    def get_encounters(self, **kwargs):
-        logging = kwargs.get('logging', True)
-        if logging: print('Extracting encounter content from library.')
-        lib_content = []
-        if kwargs.get('acronyms', None):
-            for acronym in kwargs['acronyms']:
-                book = self.book(acronym=acronym)
-                if not book: continue
-                if not book.is_owned_content(): continue
-                if not book.validate(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                content = book.get_encounters(**kwargs)
-                if logging: print(f' - {book.name}: {len(content)} items found')
-                lib_content += content
+        if format == 'dict':
+            return lib_content
+        elif format == 'list':
+            return flatten_content(lib_content)
         else:
-            for name in kwargs.get('names', self.get_book_names()):
-                book = self.book(name)
-                if not book.is_owned_content(): continue
-                if not book.validate(): continue
-                if book.name in kwargs.get('skip_books', []): continue
-                content = book.get_encounters(**kwargs)
-                if logging: print(f' - {book.name}: {len(content)} items found')
-                lib_content += content
-        
-        return lib_content
-    
-    def get_magic_items(self, **kwargs):
-        return self.get_content(types=['magic item'], **kwargs)
-    
-    def get_monsters(self, **kwargs):
-        return self.get_content(types=['monster'], **kwargs)
-    
-    def get_spells(self, **kwargs):
-        return self.get_content(types=['spell'], **kwargs)
+            raise Exception(f'"{format}" is not a valid format option.')
 
     def save_json(self, **kwargs):
         path = kwargs.get('path', self.path)

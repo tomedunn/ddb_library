@@ -1,3 +1,4 @@
+from .content_functions import flatten_content
 from .myencoder import MyEncoder
 from .page import Page
 from bs4 import BeautifulSoup
@@ -123,44 +124,84 @@ class Book:
         return '\n'.join(html_start + book_html + html_end)
     
     def get_content(self, **kwargs):
-        book_content = []
-        for page in self.pages:
-            page_content = page.get_content(**kwargs)
-            for content in page_content:
-                content.sources = [{
-                    "name": self.name,
-                    "acronym": self.acronym,
-                    "url": self.url,
-                    "path": self.path,
-                    "page": {
-                        "name": page.name,
-                        "url": page.url,
-                        "path": page.path,
-                    }
-                }]
-            
-            book_content += page_content
-        return book_content
+        """
+        Extracts content from each page in the book.
     
-    def get_encounters(self, **kwargs):
-        encounters = []
-        for page in self.pages:
-            page_encounters = page.get_encounters(**kwargs)
-            for encounter in page_encounters:
-                encounter['book'] = self.name
-                encounter['book_path'] = self.name + '; ' + encounter['book_path']
-            encounters += page_encounters
+        Parameters
+        ----------
+        content_types : (n) str
+            A list of content types to include in the final output. Allowed content types include `'Encounter'`,
+            `'Figure'`, `'Item'`, `'Magic Item'`, `'Monster'`, `'Spell'`, `'Table'`, `'Treasure'`, and `'Vehicle'`.
+            Default value ``['Encounter','Figure','Item','Magic Item','Monster','Spell','Table','Treasure','Vehicle']``.
+        
+        format : str
+            The format to return the results in. Either `'dict'` for nested dictionaries based on headers, 
+            or `'list'` for a list of contents.
+            Default value `'list'`.
+        
+        html_options : dict
+            Pre-processing options to be passed on to ``self.get_html()``.
+            Default value
+            ```python
+            {
+                'remove_empty_tags': [
+                    'div',
+                ],
+                'remove_tags': [
+                    'footer','header','link','meta','script','style','br',
+                    ('div', {'class': ['Flowchart-Block']}),
+                    ('p', {'class': ['compendium-image-subtitle']}),
+                ],
+                'replace_invisibles': True,
+                'replace_dashes': True,
+                'unwrap_tags': [
+                    'blockquote',
+                    ('div', {'class': None}),
+                    ('div', {'class': ['flexible-double-column']}),
+                    ('div', {'class': ['efota-title','efota-title-text']}),
+                    ('div', {'class': ['table-overflow-wrapper']}),
+                    ('div', {'class': ['red-statblock-text']}),
+                    (['ol','ul']),
+                ],
+            }
+            ```
+        
+        Returns
+        -------
+        content : dict
+            Content formatted in a header map format
+        """
+        format = kwargs.pop('format', 'list')
 
-        return encounters
+        book_content = {
+            'type': 'h0',
+            'id': re.match(r'.*/([\w-]+)$', self.url)[1],
+            'name': self.name,
+            'url': self.url,
+            'children': [],
+            'contents': [],
+        }
+        for page in self.pages:
+            book_content['children'].extend(page.get_content(**kwargs, format='dict'))
 
-    def get_magic_items(self, **kwargs):
-        return self.get_content(types=['magic item'], **kwargs)
-    
-    def get_monsters(self, **kwargs):
-        return self.get_content(types=['monster'], **kwargs)
-    
-    def get_spells(self, **kwargs):
-        return self.get_content(types=['spell'], **kwargs)
+        if format == 'dict':
+            return book_content
+        elif format == 'list':
+            return flatten_content(book_content)
+        else:
+            raise Exception(f'"{format}" is not a valid format option.')
+
+    def get_header_map(self, **kwargs):
+        headings_map = {
+            'type': 'h0',
+            'id': re.match(r'.*/([\w-]+)$', self.url)[1],
+            'name': self.name,
+            'children': [],
+        }
+        for page in self.pages:
+            headings_map['children'].extend(page.get_header_map(**kwargs))
+        
+        return headings_map
     
     def is_owned_content(self):
         return self.owned_content

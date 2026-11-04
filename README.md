@@ -173,32 +173,33 @@ The library can also be copied to its own directory. This is only practically us
 
 ## Extracting Book Contents
 
-This module contains functions for locating and extracting different kinds of content from an existing library, individual books, or pages. Currently three kinds of content are supported: magic items, monsters, and spells.
+This module contains functions for locating and extracting different kinds of content from an existing library, individual books, or pages. Currently, the following content types are supported:
+
+* Encounter
+* Figure
+* Item
+* Magic Item
+* Monster
+* Spell
+* Table
+* Treasure
+* Vehicle
+
+In some cases, content can be nested within another content type. For example, if a figure is within a monster stat block that figure will be included in the corresponding Monster content and won't show up as its own Figure content.
 
 ```python
 import ddb_library as dbl
 
-library_path = './example_copy/library.json'
 lib = dbl.Library().from_json_file('./example/library.json')
 
-magic_items = lib.get_magic_items()
-monsters = lib.get_monsters()
-spells = lib.get_spells()
+content = lib.get_content()
 ```
 
-When extracting multiple types of content, it's faster to use the `get_content` function instead.
+The content is returned as a `list` with a `dict` for each item containing the following fields:
 
-```python
-content = lib.get_content(types=['magic items','spells'])
-```
-
-In all cases, what's returned is a list of content with each piece of content stored as an instance of the `ContentReference` class, which contains the following information:
-
- * **name.** the name of the content.
- * **id.** a string used by D&D Beyond when referring to the content.
- * **type.** either `magic item`, `monster`, or `spell`.
- * **path.** the location of the file the content was pulled from.
+ * **content_type.** either `Magic item`, `monster`, or `spell`.
  * **modified.** when that file was last modified.
- * **sources.** a list of all books within the library the content can be found in.
+ * **path.** the location of the file the content was pulled from.
  * **html.** a string containing the content's html description.
-
+ * **book_path.** a string showing the items location within its respective book based on the book's headers.
+ * **url.** the URL of the content's parent header on D&D Beyond.
