@@ -70,32 +70,20 @@ def process_html(html_text, **kwargs):
             '\n'.join(['<!DOCTYPE html>','<html lang="en-us">','<meta charset="utf-8"/>']),
         )]
 
+        for link in soup.find_all('link', {'rel': 'canonical'}):
+            text.append(str(link))
+        
         for meta in soup.find_all('meta'):
             if meta.get('property', None) in ['og:title','og:type','og:url']:
                 text.append(str(meta))
 
         #div = soup.find('div', {'class': ['main content-container','p-article-content','article-main']})
         div = soup.find('div', {'class': 'main content-container'})
+        div = div if div else soup.find('div', {'id': 'S:0'})
         text.append(str(div) if div else '')
         text.append(kwargs.get('html_end', '</html>'))
 
         soup = BeautifulSoup('\n'.join(text), 'html.parser')
-    
-    # remove specific tags only if they're empty
-    if kwargs.get('remove_empty_tags', []):
-        """tag_list = kwargs.get('remove_empty_tags')
-        for tag in soup.find_all(tag_list):
-            if tag.text.strip() == '':
-                tag.decompose()"""
-        for item in kwargs.get('remove_empty_tags'):
-            if type(item) is tuple:
-                for tag in soup.find_all(*item):
-                    if tag.text.strip() == '':
-                        tag.decompose()
-            else:
-                for tag in soup.find_all(item):
-                    if tag.text.strip() == '':
-                        tag.decompose()
     
     # remove specific tags and their contents
     if kwargs.get('remove_tags', []):
@@ -130,6 +118,18 @@ def process_html(html_text, **kwargs):
 
     if kwargs.get('cleanup_divs', False):
         soup = cleanup_div(soup)
+
+    # remove specific tags only if they're empty
+    if kwargs.get('remove_empty_tags', []):
+        for item in kwargs.get('remove_empty_tags'):
+            if type(item) is tuple:
+                for tag in soup.find_all(*item):
+                    if tag.text.strip() == '':
+                        tag.decompose()
+            else:
+                for tag in soup.find_all(item):
+                    if tag.text.strip() == '':
+                        tag.decompose()
     
     html_text = str(soup)
 
@@ -144,7 +144,10 @@ def process_html(html_text, **kwargs):
     if kwargs.get('replace_invisibles', False):
         html_text = html_text.replace(' ', ' ') # replace invisible character U+00a0 with space.
         html_text = html_text.replace('­', '')   # replace invisible character U+00ad with nothing.
-    
+
+    if kwargs.get('replace_dashes', False):
+        html_text = re.sub(r'[−–—]', '-', html_text) # replace dash characters U+2212 and U+2013 with dashes.
+
     if kwargs.get('prettify', False):
         html_text = re.sub(r'\s+(?=[\r\n])', '', html_text)                     # remove trailing spaces
         html_text = re.sub(r'(\s*<br/>\s*)+', '<br/>\n', html_text)             # ensure a <br/> is always followed by a new line and multiple aren't chained together

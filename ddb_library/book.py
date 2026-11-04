@@ -183,7 +183,7 @@ class Book:
                     file_path = os.path.join(self.path, file)
                     page = Page(file=file, path=file_path)
                     page.update()
-                    if page.type == 'toc':
+                    if page.url == self.url:
                         self.add_toc(page)
                     else:
                         self.add_page(page)
@@ -225,6 +225,7 @@ class Book:
             for a in d.find_all('a'):
                 m = RE_URL.match(a['href'])
                 if not m: continue
+                if m.group('page_url') == 'credits-mobile': continue
                 url = '/' + m.group('book_acronym') + '/' + m.group('page_url')
                 url = url[:-1] if url.endswith('/') else url # fix for one link in strixhaven
 

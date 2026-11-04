@@ -266,9 +266,12 @@ class Page:
 
         div = soup.find('div', {'id': 'comp-next-nav'})
         if div:
-            meta_data['previous_page'] = div['data-prev-link']
-            meta_data['next_page'] = div['data-next-link']
+            meta_data['previous_page'] = div.get('data-prev-link', '')
+            meta_data['next_page'] = div.get('data-next-link', '')
 
+        link = soup.find('link', {'rel': 'canonical'})
+        if link: meta_data['url'] = link['href']
+        
         return meta_data
     
     def get_monsters( self, **kwargs ):
@@ -283,9 +286,9 @@ class Page:
     def update( self ):
         meta_data = self.get_meta_data()
         self.type = meta_data.get('og:type', self.type)
-        self.type = 'toc' if self.type == 'article' else self.type
         self.name = meta_data.get('og:title', self.name)
         self.url = meta_data.get('og:url', self.url)
+        self.url = meta_data.get('url', self.url)
         self.previous_page = meta_data.get('previous_page', self.previous_page)
         self.next_page = meta_data.get('next_page', self.next_page)
         self.modified = os.path.getmtime(self.path)
