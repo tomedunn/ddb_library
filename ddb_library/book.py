@@ -29,19 +29,32 @@ class Book:
         return f'{self.__dict__}'
 
     def add_page(self, page, **kwargs):
+        """
+        Adds a page to this book.
+
+        Parameters
+        ----------
+        
+        page : Page
+            A page to add to the book.
+        
+        replace : bool
+            If ``True`` then the given page will replace an existing page with the same path.
+            If ``False`` then the page will only be added if the book doesn't have any pages with the same path already.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
+        """
         replace = kwargs.get('replace', False)
 
         if type(page) is Page:
             new_page = page
         else:
             new_page = Page(**page, root_path=self.path)
-        
-        """for i in range(self.size()):
-            if self.pages[i].path == new_page.path and replace:
-                self.pages[i] = new_page
-                return self
-        
-        self.pages.append(new_page)"""
 
         if not self.page(path=new_page.path):
             self.pages.append(new_page)
@@ -53,11 +66,51 @@ class Book:
         return self
     
     def add_pages(self, pages, **kwargs):
+        """
+        Adds a list of pages to this book.
+
+        Parameters
+        ----------
+        
+        pages : (n) Page
+            A list of pages to add to the book.
+        
+        replace : bool
+            If ``True`` then each page will replace an existing page with the same path.
+            If ``False`` then a page will only be added if the book doesn't have any pages with the same path already.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
+        """
         for page in pages:
             self.add_page(page, **kwargs)
         return self
     
     def add_toc(self, page, **kwargs):
+        """
+        Adds a table of contents page to this book.
+
+        Parameters
+        ----------
+        
+        page : Page
+            The table of contents page.
+        
+        replace : bool
+            If ``True`` then the given page will replace the book's existing table of contents page. 
+            If ``False`` then the page will only be added if no table of contents exists already.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
+        """
         if not page: return self
 
         replace = kwargs.get('replace', False)
@@ -73,7 +126,32 @@ class Book:
         return self
     
     def copy(self, path, **kwargs):
-        """Copies the contents of this folder to a new location."""
+        """
+        Copies the contents of this book to a new location.
+
+        Parameters
+        ----------
+
+        path : str
+            Location for the copied file.
+
+        dryrun : bool
+            If ``False`` the file will be copied. If ``True`` the file won't be copied and the commands for copying will be printed instead.
+            Default value ``False``.
+
+        logging : bool
+            If ``True`` a log will be printed.
+            Default value ``False``.
+
+        kwargs : dict
+            Optional arguments passed to each page's `copy` function.
+        
+        Returns
+        -------
+
+        self : Book
+            A self reference for chaining functions together.
+        """
 
         dryrun = kwargs.get('dryrun', False)
         logging = kwargs.get('logging', True)
@@ -102,6 +180,14 @@ class Book:
         return self
     
     def folder_exists(self):
+        """
+        Returns ``True`` if the folder associated with this book exists.
+        
+        Returns
+        -------
+        ans : bool
+            ``True`` if the book's folder exists, ``False`` otherwise.
+        """
         return os.path.isdir(self.path)
 
     def get_html(self, **kwargs):
@@ -204,15 +290,55 @@ class Book:
         return headings_map
     
     def is_owned_content(self):
+        """
+        Checks if the book is owned content.
+        
+        Returns
+        -------
+
+        ans : bool
+            Returns ``True`` if the book is owned and ``False`` if its not.
+        """
         return self.owned_content
 
     def last_modified(self):
-        lm = 0 if not self.table_of_contents else self.table_of_contents.modified
+        """
+        Determines when the book was last modified.
+        
+        Returns
+        -------
+
+        mtime : float
+            Returns the most recent modified time of any of the books pages. If the book has no pages then
+            ``0`` is returned.
+        """
+        mtime = 0 if not self.table_of_contents else self.table_of_contents.modified
         if self.pages:
-            lm = max(lm, max([p.modified for p in self.pages]))
-        return lm
+            mtime = max(mtime, max([p.modified for p in self.pages]))
+        return mtime
 
     def load_folder(self, **kwargs):
+        """
+        Searches the book's folder for pages and adds them to the book.
+        
+        Any file in the book's folder with a ``.html`` suffix is scanned and added to the book.
+        If the scan reveals a URL for the page that matches the book's URL then that page is treated as 
+        a table of contents page.
+
+        Parameters
+        ----------
+
+        replace : bool
+            If ``True`` then pages will replace existing pages with the same path.
+            If ``False`` then pages will only be added if the book doesn't have a page with the same path already.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
+        """
         if not self.folder_exists():
             raise FileNotFoundError("folder doesn't exist")
         
@@ -225,9 +351,9 @@ class Book:
                     page = Page(file=file, path=file_path)
                     page.update()
                     if page.url == self.url:
-                        self.add_toc(page)
+                        self.add_toc(page, **kwargs)
                     else:
-                        self.add_page(page)
+                        self.add_page(page, **kwargs)
         
         # construct final set of pages with toc at the front and in correct page order
         if self.table_of_contents:
@@ -238,7 +364,16 @@ class Book:
         return self
 
     def load_toc(self, **kwargs):
-        """Finds all pages listed in the book's table of contents.
+        """
+        Extracts book and page details from the table of contents.
+
+        If a page is found that isn't already present in the book's page list then that page is added.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
         """
         RE_URL = re.compile(
             r'(?P<url>'
@@ -295,6 +430,15 @@ class Book:
         return self
 
     def order_pages(self, **kwargs):
+        """
+        Arranges the book's pages in the order they appear in the digital book.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Book`` for chaining commands.
+        """
         debugging = kwargs.get('debugging', False)
         pages = []
         for i in range(self.size()):
@@ -316,6 +460,34 @@ class Book:
         return self
 
     def page(self, *args, **kwargs):
+        """
+        Returns the first page that matches the given name, file, path, or url.
+
+        The default argument is ``name``, which can be provided without providing a keyword.
+        The other arguments, ``file``, ``path`` and ``url`` require a keyword. If multiple keyword
+        arguments are provided then the first page to match any of them is returned.
+
+        Parameters
+        ----------
+
+        name : str
+            The title of the page.
+        
+        file : str
+            The acronym of the page.
+        
+        path : str
+            The path to the page's file.
+        
+        url : str
+            The url of the page.
+        
+        Returns
+        -------
+
+        page : Page
+            The first page that matches the given criteria. If no page matches, returns ``None``.
+        """
         name = args[0] if args else kwargs.get('name', None)
         file = kwargs.get('file', None)
         path = kwargs.get('path', None)
@@ -340,6 +512,17 @@ class Book:
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update(self, **kwargs):
+        """
+        Updates the pages in this book.
+
+        Checks if this book's pages have been modified and updates the details of any that have.
+
+        Returns
+        -------
+
+        self : Book
+            A reference to this ``Book`` for chaining commands.
+        """
         self.name = kwargs.get('name', self.name)
         self.acronym = kwargs.get('acronym', self.acronym)
         self.url = kwargs.get('url', self.url)
@@ -361,8 +544,15 @@ class Book:
         return self
 
     def update_available(self, **kwargs):
-        """Returns True if any of the page files for this book have been 
-        modified since this was created or last updated.
+        """
+        Returns ``True`` if any of the book's files have been modified since they were last scanned.
+
+        Returns
+        -------
+
+        ans : bool
+            ``True`` if any of the book's files have been modified.
+            Returns ``False`` otherwise.
         """
         logging = kwargs.get('logging', False)
 
