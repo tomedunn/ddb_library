@@ -140,12 +140,6 @@ class Library:
         if logging: print('Books loaded.')
         return self
 
-    def load_book_pages(self, **kwargs):
-        for book in self.books:
-            if not book.is_owned_content(): continue
-            if book.name in kwargs.get('skip_books', []): continue
-            book.load_pages()
-
     def load_sources(self, **kwargs):
         """loads books from a local sources.html file downloaded from DDB.
         """
