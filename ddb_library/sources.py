@@ -29,7 +29,32 @@ class Sources:
         return f'{self.__dict__}'
 
     def copy(self, path, **kwargs):
-        """Copies the contents of this file to a new location."""
+        """
+        Copies the contents of this file to a new location.
+
+        Parameters
+        ----------
+
+        path : str
+            Location for the copied file.
+
+        dryrun : bool
+            If ``False`` the file will be copied. If ``True`` the file won't be copied and the commands for copying will be printed instead.
+            Default value ``False``.
+
+        logging : bool
+            If ``True`` a log will be printed.
+            Default value ``False``.
+
+        kwargs : dict
+            Optional arguments passed to ``self.get_html``.
+        
+        Returns
+        -------
+
+        self : Page
+            A self reference for chaining functions together.
+        """
 
         dryrun = kwargs.get('dryrun', False)
 
@@ -55,7 +80,13 @@ class Sources:
         return self
 
     def file_exists( self ):
-        """Returns True if the file associated with this page exists.
+        """
+        Returns ``True`` if the file associated with this page exists.
+        
+        Returns
+        -------
+        ans : bool
+            ``True`` if the page's file exists, ``False`` otherwise.
         """
         if self.path:
             return os.path.isfile(self.path)
@@ -63,6 +94,71 @@ class Sources:
             return False
     
     def get_html(self, **kwargs):
+        """
+        Returns the page's HTML.
+
+        Parameters
+        ----------
+
+        extract_main_body : bool
+            If ``True`` a new simplified version of the page is constructed using just the main body 
+            and a few useful elements from outside of it.
+            Default value ``False``.
+    
+        remove_tags : list
+            A list of tags to be removed. Tags may be given as either a string, in which case all tags with that name 
+            are removed, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+            in order to be removed.
+            Default value ``[]``.
+        
+        unwrap_tags : list
+            A list of tags to be unwrapped. Tags may be given as either a string, in which case all tags with that name 
+            are unwrapped, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+            in order to be removed.
+            Default value ``[]``.
+        
+        remove_tag_attributes : list
+            Removes the given attributes from all tags that have one.
+            Default value ``[]``.
+        
+        cleanup_divs : bool
+            If ``True`` then removes all div tags with no text inside them, unwraps all div tags that contain only a single
+            div tag inside of them, and if a div tag contains only text then all the text is merged onto a single line.
+            Default value ``False``.
+    
+        remove_empty_tags : list
+            A list of tags to be removed if they contain no text inside of them. Tags may be given as either a string, in 
+            which case all tags with that name are unwrapped, or as a tuple containing the tag name and a dict of attributes 
+            and values that the tag must have in order to be removed.
+            Default value ``[]``.
+        
+        remove_comments : bool
+            If ``True`` then all comments are removed from the text.
+            Default value ``False``.
+    
+        remove_blank_lines : bool
+            If ``True`` then all lines of length zero are removed.
+            Default value ``False``.
+        
+        replace_invisibles : bool
+            If ``True`` then several non-standard white-space characters are replaced with a standard space character,
+            and zero width characters are removed.
+            Default value ``False``.
+        
+        replace_dashes : bool
+            If ``True`` then several dash-like characters are replaced with standard dash characters ``-``.
+            Default value ``False``.
+    
+        prettify : bool
+            Applies several cosmetic changes to make the html text easier to read.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        html : str
+            The page's HTML text.
+        """
         if not self.file_exists():
             raise FileNotFoundError("File does not exist.")
         
@@ -72,7 +168,25 @@ class Sources:
         return process_html(html_text, **kwargs)
     
     def load_books(self):
-        """loads books from a local sources.html file downloaded from DDB.
+        """
+        Scans sources for books.
+
+        Each book found is returned as a ``dict`` with the following information:
+        ```python
+        dict(
+            name=name, 
+            acronym=acronym, 
+            url=url, 
+            path=path, 
+            owned_content=owned_content
+        )
+        ```
+        
+        Returns
+        -------
+
+        books : list
+            The books found during the scan. Each book takes the form of a ``dict``.
         """
         RE_URL = re.compile(
             r'(?P<url>'
@@ -152,6 +266,17 @@ class Sources:
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update( self ):
+        """
+        Updates this page.
+
+        Scans this page's file for details and updates them if they've changed. 
+
+        Returns
+        -------
+
+        self : Page
+            A reference to this ``Page`` for chaining commands.
+        """
         if not self.file_exists():
             raise FileNotFoundError("File does not exist.")
         
@@ -159,8 +284,15 @@ class Sources:
         return self
         
     def update_available( self ):
-        """Returns True if the file for this page has been modified 
-        since this was created or last updated.
+        """
+        Returns ``True`` if this page's file has been modified since it was last scanned.
+
+        Returns
+        -------
+
+        ans : bool
+            ``True`` if this page's file has been modified.
+            Returns ``False`` otherwise.
         """
         if not self.file_exists(): return False
         if not self.modified: return True
