@@ -32,10 +32,32 @@ class Library:
         return f'{self.__dict__}'
     
     def add_book(self, *args, **kwargs):
+        """
+        Adds a book to this library.
+
+        Parameters
+        ----------
+        
+        path : str
+            A path to the folder containing the book's files. Must be provided with a keyword.
+        
+        replace : bool
+            If ``True`` then the given book will replace an existing book with the same path if it
+            already exists in the library. If ``False`` then the existing book will not be replaced.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
+        """
         book = args[0] if args else kwargs
         replace = kwargs.get('replace', False)
-        
-        if type(book) is dict:
+
+        if type(book) is str:
+            book = Book(path=book)
+        elif type(book) is dict:
             book = Book(**book, root_path=self.path)
         elif type(book) is not Book:
             print('unable to process book')
@@ -50,11 +72,50 @@ class Library:
         return self
     
     def add_books(self, books, **kwargs):
+        """
+        Adds a list of books to this library.
+
+        Parameters
+        ----------
+        
+        books : list
+            Books to be added to the library. Each book can be a ``Book``, a ``dict`` with items that can be used to
+            construct a ``Book``, or the path to a folder containing a book as a ``str``.
+        
+        replace : bool
+            If ``True`` then the given book will replace an existing book with the same path if it
+            already exists in the library. If ``False`` then the existing book will not be replaced.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
+        """
         for book in books:
             self.add_book(book, **kwargs)
         return self
     
     def add_sources(self, *args, **kwargs):
+        """
+        Adds a sources file to this library.
+
+        Parameters
+        ----------
+
+        file : str
+            The name of the sources file.
+        
+        path : str
+            The path to the folder containing the sources file.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
+        """
         sources = args[0] if args else kwargs
         
         if type(sources) is dict:
@@ -67,6 +128,31 @@ class Library:
         return self
     
     def book(self, *args, **kwargs):
+        """
+        Returns the first book that matches the given title, acronym, or path.
+
+        The default argument is ``name``, which can be provided without providing a keyword.
+        The other arguments, ``acronym`` and ``path``, require a keyword. If multiple keyword
+        arguments are provided then the first book to match any of them is returned.
+
+        Parameters
+        ----------
+
+        name : str
+            The title of the book.
+        
+        acronym : str
+            The acronym of the book.
+        
+        path : str
+            The path to the folder containing the book.
+        
+        Returns
+        -------
+
+        book : Book
+            The first book that matches the given criteria. If no book matches, returns ``None``.
+        """
         name = args[0] if args else kwargs.get('name', None)
         acronym = kwargs.get('acronym', None)
         path = kwargs.get('path', None)
@@ -80,7 +166,32 @@ class Library:
         return None
     
     def copy(self, path, **kwargs):
-        """Copies the contents of this library to a new location."""
+        """
+        Copies the contents of this library to a new location.
+
+        Parameters
+        ----------
+
+        path : str
+            Location for the copied file.
+
+        dryrun : bool
+            If ``False`` the file will be copied. If ``True`` the file won't be copied and the commands for copying will be printed instead.
+            Default value ``False``.
+
+        logging : bool
+            If ``True`` a log will be printed.
+            Default value ``False``.
+
+        kwargs : dict
+            Optional arguments passed to each book's `copy` function.
+        
+        Returns
+        -------
+
+        self : Library
+            A self reference for chaining functions together.
+        """
         
         dryrun = kwargs.get('dryrun', False)
         logging = kwargs.get('logging', True)
@@ -120,7 +231,27 @@ class Library:
         return self
 
     def load_books(self, **kwargs):
-        """Loads each book in library.
+        """
+        Attempts to load each book in the library.
+
+        Loading a book means searching for its folder in the library's sources folder, and then scanning
+        the files in that folder to determine the book's table of contents (if it exist), pages, and page order.
+
+        Parameters
+        ----------
+
+        logging : bool
+            If ``True`` then details about the function's progress will be printed to ``sys.stdout``.
+            Default value ``False``.
+        
+        skip_books : list
+            Titles of books to skip during the process.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
         """
         logging = kwargs.get('logging', True)
         skip_books = kwargs.get('skip_books', [])
@@ -141,7 +272,24 @@ class Library:
         return self
 
     def load_sources(self, **kwargs):
-        """loads books from a local sources.html file downloaded from DDB.
+        """
+        Loads books found in this library's sources file.
+
+        The library's ``sources`` file is scanned for books. New books are added to this library
+        and existing books are updated.
+
+        Parameters
+        ----------
+
+        logging : bool
+            If ``True`` then details about the function's progress will be printed to ``sys.stdout``.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
         """
         
         logging = kwargs.get('logging', True)
@@ -168,6 +316,15 @@ class Library:
         return self
 
     def get_book_names(self, **kwargs):
+        """
+        Returns a list of names for books in this library.
+        
+        Returns
+        -------
+
+        book_names : list
+            The names of the books in this library.
+        """
         if 'update_available' in kwargs:
             return [book.name for book in self.books if book.update_available() == kwargs['update_available']]
         elif 'validate' in kwargs:
@@ -274,6 +431,24 @@ class Library:
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update(self, **kwargs):
+        """
+        Updates the sources and books in this library.
+
+        Checks if this library's sources or books have been modified and updates the details of any that have.
+
+        Parameters
+        ----------
+
+        logging : bool
+            If ``True`` then details about the function's progress will be printed to ``sys.stdout``.
+            Default value ``False``.
+
+        Returns
+        -------
+
+        self : Library
+            A reference to this ``Library`` for chaining commands.
+        """
         logging = kwargs.get('logging', False)
 
         if self.sources.update_available():
@@ -288,8 +463,15 @@ class Library:
         return self
     
     def update_available(self):
-        """Returns True if the source file or if any of the books in this 
-        library have been modified since this was created or last updated.
+        """
+        Returns ``True`` if the library's files have been modified since they were last scanned.
+
+        Returns
+        -------
+
+        ans : book
+            ``True`` if the library's sources or any of its books have been modified.
+            Returns ``False`` otherwise.
         """
         if self.sources.update_available():
             return True
