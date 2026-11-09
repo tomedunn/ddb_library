@@ -22,7 +22,32 @@ class Page:
         return f'{self.__dict__}'
 
     def copy(self, path, **kwargs):
-        """Copies the contents of this file to a new location."""
+        """
+        Copies the contents of this file to a new location.
+
+        Parameters
+        ----------
+
+        path : str
+            Location for the copied file.
+
+        dryrun : bool
+            If ``False`` the file will be copied. If ``True`` the file won't be copied and the commands for copying will be printed instead.
+            Default value ``False``.
+
+        logging : bool
+            If ``True`` a log will be printed.
+            Default value ``False``.
+
+        kwargs : dict
+            Optional arguments passed to ``self.get_html``.
+        
+        Returns
+        -------
+
+        self : Page
+            A self reference for chaining functions together.
+        """
 
         dryrun = kwargs.get('dryrun', False)
         logging = kwargs.get('logging', False)
@@ -50,7 +75,13 @@ class Page:
         return self
     
     def file_exists( self ):
-        """Returns True if the file associated with this page exists.
+        """
+        Returns ``True`` if the file associated with this page exists.
+        
+        Returns
+        -------
+        ans : bool
+            ``True`` if the page's file exists, ``False`` otherwise.
         """
         if self.path:
             return os.path.isfile(self.path)
@@ -106,6 +137,71 @@ class Page:
         return headings[0]['children']
     
     def get_html(self, **kwargs):
+        """
+        Returns the page's HTML.
+
+        Parameters
+        ----------
+
+        extract_main_body : bool
+            If ``True`` a new simplified version of the page is constructed using just the main body 
+            and a few useful elements from outside of it.
+            Default value ``False``.
+    
+        remove_tags : list
+            A list of tags to be removed. Tags may be given as either a string, in which case all tags with that name 
+            are removed, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+            in order to be removed.
+            Default value ``[]``.
+        
+        unwrap_tags : list
+            A list of tags to be unwrapped. Tags may be given as either a string, in which case all tags with that name 
+            are unwrapped, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+            in order to be removed.
+            Default value ``[]``.
+        
+        remove_tag_attributes : list
+            Removes the given attributes from all tags that have one.
+            Default value ``[]``.
+        
+        cleanup_divs : bool
+            If ``True`` then removes all div tags with no text inside them, unwraps all div tags that contain only a single
+            div tag inside of them, and if a div tag contains only text then all the text is merged onto a single line.
+            Default value ``False``.
+    
+        remove_empty_tags : list
+            A list of tags to be removed if they contain no text inside of them. Tags may be given as either a string, in 
+            which case all tags with that name are unwrapped, or as a tuple containing the tag name and a dict of attributes 
+            and values that the tag must have in order to be removed.
+            Default value ``[]``.
+        
+        remove_comments : bool
+            If ``True`` then all comments are removed from the text.
+            Default value ``False``.
+    
+        remove_blank_lines : bool
+            If ``True`` then all lines of length zero are removed.
+            Default value ``False``.
+        
+        replace_invisibles : bool
+            If ``True`` then several non-standard white-space characters are replaced with a standard space character,
+            and zero width characters are removed.
+            Default value ``False``.
+        
+        replace_dashes : bool
+            If ``True`` then several dash-like characters are replaced with standard dash characters ``-``.
+            Default value ``False``.
+    
+        prettify : bool
+            Applies several cosmetic changes to make the html text easier to read.
+            Default value ``False``.
+        
+        Returns
+        -------
+
+        html : str
+            The page's HTML text.
+        """
         with open(self.path, 'r') as fin:
             html_text = fin.read()
 
@@ -129,6 +225,7 @@ class Page:
         
         html_options : dict
             Pre-processing options to be passed on to ``self.get_html()``.
+            See ``self.get_html()`` for more details about what each option does.
             Default value
             ```python
             {
@@ -569,6 +666,23 @@ class Page:
             raise Exception(f'"{format}" is not a valid format option.')
     
     def get_meta_data( self ):
+        """
+        Extracts key metadata from page's HTML file.
+
+        Metadata is taken from the page's ``<meta>`` tags, with the exception of ``url`` which is taken from the
+        ``<link rel="canonical">`` tag.
+        
+        Returns
+        -------
+
+        meta_data : dict
+            Meta data including the following key values: 
+             * 'og:title' - the name of the page.
+             * 'og:type' - the type of page, either ``'article'`` or ``'website'``.
+             * 'previous_page' - relative URL of the page before this in the book or ``''`` if no such page exists.
+             * 'next_page' - relative URL of the page after this in the book or ``''`` if no such page exists.
+             * 'url' - the canonical URL of this page, which can differ from the actual URL listed in meta tags.
+        """
         soup = BeautifulSoup(self.get_html(), 'html.parser')
 
         meta_data = {}
@@ -584,7 +698,7 @@ class Page:
             meta_data['next_page'] = div.get('data-next-link', '')
 
         link = soup.find('link', {'rel': 'canonical'})
-        if link: meta_data['url'] = link['href']
+        if link: meta_data['url'] = link['href'].lower()
         
         return meta_data
     
@@ -592,6 +706,17 @@ class Page:
         return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update( self ):
+        """
+        Updates this page.
+
+        Scans this page's file for details and updates them if they've changed. 
+
+        Returns
+        -------
+
+        self : Page
+            A reference to this ``Page`` for chaining commands.
+        """
         meta_data = self.get_meta_data()
         self.type = meta_data.get('og:type', self.type)
         self.name = meta_data.get('og:title', self.name)
@@ -600,10 +725,19 @@ class Page:
         self.previous_page = meta_data.get('previous_page', self.previous_page)
         self.next_page = meta_data.get('next_page', self.next_page)
         self.modified = os.path.getmtime(self.path)
+
+        return self
         
     def update_available( self ):
-        """Returns True if the file for this page has been modified 
-        since this was created or last updated.
+        """
+        Returns ``True`` if this page's file has been modified since it was last scanned.
+
+        Returns
+        -------
+
+        ans : bool
+            ``True`` if this page's file has been modified.
+            Returns ``False`` otherwise.
         """
         if not self.file_exists(): return False
         if not self.modified: return True
