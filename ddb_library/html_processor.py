@@ -48,19 +48,68 @@ def cleanup_div(soup):
 
 def process_html(html_text, **kwargs):
     """
-    options = {
-        'cleanup_paragraphs': 'gets rid of paragraphs that are blank.',
-        'cleanup_divs': 'does a few things, see function',
-        'extract_main_body': 'keep only the main part of the page',
-        'prettify': 'Makes the final text easier to read.',
-        'remove_blank_lines': 'removes any blank lines from html text.',
-        'remove_comments': 'removes any lines that are just a comment',
-        'remove_empty_tags': 'removes any tag matching the tags in the given list that is also empty',
-        'remove_tags': 'removes any tag matching the tags in the given list',
-        'remove_tag_attributes': 'gets rid of the given attributes from any tag that has them',
-        'replace_invisibles': 'replaces certain invisible characters with either a space or nothing.',
-        'unwrap_tags': 'removes the given tags but keeps their contents',
-    }
+    Processes the given HTML text.
+
+    Parameters
+    ----------
+
+    extract_main_body : bool
+        If ``True`` a new simplified version of the page is constructed using just the main body 
+        and a few useful elements from outside of it.
+        Default value ``False``.
+
+    remove_tags : list
+        A list of tags to be removed. Tags may be given as either a string, in which case all tags with that name 
+        are removed, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+        in order to be removed.
+        Default value ``[]``.
+    
+    unwrap_tags : list
+        A list of tags to be unwrapped. Tags may be given as either a string, in which case all tags with that name 
+        are unwrapped, or as a tuple containing the tag name and a dict of attributes and values that the tag must have
+        in order to be removed.
+        Default value ``[]``.
+    
+    remove_tag_attributes : list
+        Removes the given attributes from all tags that have one.
+        Default value ``[]``.
+    
+    cleanup_divs : bool
+        If ``True`` then removes all div tags with no text inside them, unwraps all div tags that contain only a single
+        div tag inside of them, and if a div tag contains only text then all the text is merged onto a single line.
+        Default value ``False``.
+
+    remove_empty_tags : list
+        A list of tags to be removed if they contain no text inside of them. Tags may be given as either a string, in 
+        which case all tags with that name are unwrapped, or as a tuple containing the tag name and a dict of attributes 
+        and values that the tag must have in order to be removed.
+        Default value ``[]``.
+    
+    remove_comments : bool
+        If ``True`` then all comments are removed from the text.
+        Default value ``False``.
+
+    remove_blank_lines : bool
+        If ``True`` then all lines of length zero are removed.
+        Default value ``False``.
+    
+    replace_invisibles : bool
+        If ``True`` then several non-standard white-space characters are replaced with a standard space character,
+        and zero width characters are removed.
+        Default value ``False``.
+    
+    replace_dashes : bool
+        If ``True`` then several dash-like characters are replaced with standard dash characters ``-``.
+        Default value ``False``.
+
+    prettify : bool
+        Applies several cosmetic changes to make the html text easier to read.
+        Default value ``False``.
+
+    Returns
+    -------
+    html_text : str
+        The processed HTML text.
     """
 
     soup = BeautifulSoup(html_text, 'html.parser')
