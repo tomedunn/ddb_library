@@ -1,4 +1,5 @@
-def flatten_content(nested_contents, content_path=[], content=[]):
+def flatten_content(nested_contents, content_path=[], content=None):
+    if content == None: content = []
     if type(nested_contents) is list:
         for nested_content in nested_contents:
             content = flatten_content(nested_content, content_path, content)
