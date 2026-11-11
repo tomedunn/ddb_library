@@ -534,6 +534,7 @@ class Book:
             self.load_toc()
 
         if self.pages:
+            self.order_pages()
             for page in self.pages:
                 if page.update_available():
                     page.update()
