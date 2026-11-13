@@ -220,7 +220,8 @@ class Sources:
 
                 # get the book name
                 name = a.get_text('', strip=True)
-                acronym = create_book_acronym(name)
+                #acronym = create_book_acronym(name)
+                acronym = url.split('/')[-1]
 
                 # construct the book
                 books.append(dict(
@@ -249,7 +250,8 @@ class Sources:
             
             # get the book name
             name = a.get_text('', strip=True)
-            acronym = create_book_acronym(name)
+            #acronym = create_book_acronym(name)
+            acronym = url.split('/')[-1]
 
             # construct the book
             books.append(dict(

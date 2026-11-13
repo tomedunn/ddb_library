@@ -11,6 +11,7 @@ __all__ = [
     'Encounter',
     'Figure',
     'Item',
+    'List',
     'MagicItem',
     'Monster',
     'Spell',

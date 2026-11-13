@@ -473,7 +473,7 @@ class Library:
         Returns
         -------
 
-        ans : book
+        ans : bool
             ``True`` if the library's sources or any of its books have been modified.
             Returns ``False`` otherwise.
         """
