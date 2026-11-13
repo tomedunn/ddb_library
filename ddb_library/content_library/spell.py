@@ -1,4 +1,8 @@
 from .content import *
+from .figure import Figure
+from .list import List
+from .monster import Monster
+from .table import Table
 from bs4 import BeautifulSoup
 import re
 
@@ -9,11 +13,22 @@ class Spell(Content):
         self.book_path = kwargs.get('book_path', None)
         self.url = kwargs.get('url', None)
         self.level = kwargs.get('level', None)
+        self.school = kwargs.get('school', None)
         self.casting_time = kwargs.get('casting_time', None)
         self.range = kwargs.get('range', None)
         self.components = kwargs.get('components', None)
         self.duration = kwargs.get('duration', None)
-        self.description = kwargs.get('description', None)
+        self.description = kwargs.get('description', [])
+        for line in self.description:
+            if type(line) is dict:
+                if line['content_type'] == 'List':
+                    line = List(**line)
+                elif line['content_type'] == 'Monster':
+                    line = Monster(**line)
+                elif line['content_type'] == 'Table':
+                    line = Table(**line)
+        self.figure = kwargs.get('figure', None)
+        if type(self.figure) is dict: self.figure = Figure(**self.figure)
         self.html = kwargs.get('html', None)
         if self.html: self.__process_html()
 
@@ -28,11 +43,13 @@ class Spell(Content):
             'book_path': self.book_path,
             'url': self.url,
             'level': self.level,
+            'school': self.school,
             'casting_time': self.casting_time,
             'range': self.range,
             'components': self.components,
             'duration': self.duration,
-            'description': self.description,
+            'description': [d if type(d) is str else d.to_dict() for d in self.description],
+            'figure': self.figure.to_dict() if self.figure else None,
         }
 
     def __process_html(self):
@@ -53,37 +70,30 @@ class Spell(Content):
                 'tags': ['Warding']
             }
         """
-        def _parse_list( list ):
-            items = [li.get_text(strip=True) for li in list.find_all('li')]
-            return dict(type='list', items=items)
-
-        def _parse_monster( mon ):
-            #return dmp.construct_monster(mon)
-            return '{monster}'
+        def process_figure(soup):
+            figure = {}
+            t = soup.find('span', class_='artist-credit')
+            if t: figure['artist'] = t.get_text()
         
-        def _parse_table( tab ):
-            head = []
-            for tr in tab.find('thead').find_all('tr'):
-                row = [th.get_text(strip=True) for th in tr.find_all('th')]
-                head += [row]
+            t = soup.find('img')
+            if t: figure['src'] = t['src']
+        
+            t = soup.find('figcaption')
+            if t: figure['caption'] = t.get_text()
 
-            body = []
-            for tr in tab.find('tbody').find_all('tr'):
-                row = [td.get_text(strip=True) for td in tr.find_all('td')]
-                body += [row]
-            return dict(type='table', head=head, body=body)
-
+            if figure:
+                return Figure(
+                    book_path=self.book_path,
+                    url=self.url,
+                    **figure,
+                )
+            else:
+                return None
+        
         soup = BeautifulSoup(self.html, 'html.parser')
-
-        # remove some stuff
-        for e in soup.find_all('div', {'class': 'spell-components'}):
-            e.unwrap()
-        
-        for e in soup.find_all('figure'):
-            e.decompose()
         
         # get spell name and id
-        s = soup.find('h3')
+        s = soup.find(['h3','h4','h5'])
         a = s.find('a', {'class': 'tooltip-hover spell-tooltip'})
         self.id = a['href'][8:]
         self.name = a.get_text('', strip=False)
@@ -121,24 +131,84 @@ class Spell(Content):
         self.range = spell.get('range', self.range)
         self.components = spell.get('components', self.components)
         self.duration = spell.get('duration', self.duration)
-    
+        
         # get remaining monster stats
         description = []
         s = s.find_previous_sibling()
-        for e in s.find_next_siblings(['div','p','div','ol','ul','table']):
+        for e in s.find_next_siblings(['div','p','ol','ul','table']):
             if e.name == 'p':
-                description.append(e.get_text('', strip=False))
+                description.append(e.get_text().strip())
             elif e.name == 'div':
-                #print(spell['id'])
-                description.append(_parse_monster(e))
+                description.append(Monster(**{
+                    'content_type': 'Monster',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
             elif e.name in ['ol','ul']:
-                description.append(_parse_list(e))
+                description.append(List(**{
+                    'content_type': 'List',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
             elif e.name == 'table':
-                description.append(_parse_table(e))
+                description.append(Table(**{
+                    'content_type': 'Table',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
         
         self.description = description
-    
-        # post processing
-        #spell = post_process_spell(spell)
-        
+
+        # figure
+        self.figure = process_figure(soup)
+
         return spell
+
+    def to_str(self, rules='2024'):
+        """
+        Converts the spell to a plain text string.
+
+        Parameters
+        ----------
+        rules : str
+            Determines how the spell is formatted, either ``'2014'`` or ``'2024'``. 
+            If ``'2014'`` the stat block will be formatted to match spells published under the 2014 rules (5e), 
+            and if ``'2024'`` the format will match those published under the 2024 rules (5.5e).
+            Default value ``'2024'``.
+        
+        Returns
+        -------
+        text : str
+            Plain text spell.
+        """
+        pt = []
+        
+        # name
+        pt.append(self.name)
+
+        # meta
+        if self.level == 'Cantrip':
+            pt.append(f'{self.school} {self.level}')
+        else:
+            pt.append(f'{self.level} {self.school}')
+
+        pt.append(f'Casting Time: {self.casting_time}')
+        pt.append(f'Range: {self.range}')
+        pt.append(f'Components: {self.components}')
+        pt.append(f'Duration: {self.duration}')
+
+        # description
+        for line in self.description:
+            if type(line) is str:
+                pt.append(line)
+            elif type(line) is List:
+                pt.append(line.to_str())
+            elif type(line) is Monster:
+                pt.append('\n' + line.to_str() + '\n')
+            elif type(line) is Table:
+                pt.append('\n' + line.to_str() + '\n')
+
+        return '\n'.join(pt)
