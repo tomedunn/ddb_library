@@ -255,8 +255,8 @@ class Page:
         
         Returns
         -------
-        content : dict
-            Content formatted in a header map format
+        content : list
+            Content formatted in a list format
         """
         content_types = kwargs.get('content_types', ['Encounter','Figure','Item','Magic Item','Monster','Spell','Table','Treasure','Vehicle'])
 

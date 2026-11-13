@@ -256,8 +256,8 @@ class Book:
         
         Returns
         -------
-        content : dict
-            Content formatted in a header map format
+        content : list
+            Content formatted in a list format
         """
         format = kwargs.pop('format', 'list')
 
