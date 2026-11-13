@@ -1,4 +1,8 @@
 from .content import *
+from .figure import Figure
+from .list import List
+from .monster import Monster
+from .table import Table
 from bs4 import BeautifulSoup
 import re
 
@@ -12,8 +16,17 @@ class MagicItem(Content):
         self.subtype = kwargs.get('subtype', None)
         self.rarity = kwargs.get('rarity', None)
         self.attunement = kwargs.get('attunement', None)
-        self.description = kwargs.get('description', None)
+        self.description = kwargs.get('description', [])
+        for line in self.description:
+            if type(line) is dict:
+                if line['content_type'] == 'List':
+                    line = List(**line)
+                elif line['content_type'] == 'Monster':
+                    line = Monster(**line)
+                elif line['content_type'] == 'Table':
+                    line = Table(**line)
         self.figure = kwargs.get('figure', None)
+        if type(self.figure) is dict: self.figure = Figure(**self.figure)
         self.html = kwargs.get('html', None)
         if self.html: self.__process_html()
 
@@ -31,8 +44,8 @@ class MagicItem(Content):
             'subtype': self.subtype,
             'rarity': self.rarity,
             'attunement': self.attunement,
-            'description': self.description,
-            'figure': self.figure,
+            'description': [d if type(d) is str else d.to_dict() for d in self.description],
+            'figure': self.figure.to_dict() if self.figure else None,
         }
 
     def __process_html(self):
@@ -47,7 +60,14 @@ class MagicItem(Content):
             t = soup.find('figcaption')
             if t: figure['caption'] = t.get_text()
 
-            return figure
+            if figure:
+                return Figure(
+                    book_path=self.book_path,
+                    url=self.url,
+                    **figure,
+                )
+            else:
+                return None
         
         soup = BeautifulSoup(self.html.replace('\n',''), 'html.parser')
 
@@ -72,19 +92,84 @@ class MagicItem(Content):
             tag.get_text('', strip=True),
             re.IGNORECASE
         )
-        self.type = m['type']
-        self.subtype = m.group('subtype')
-        self.rarity = m['rarity']
-        self.attunement = m.group('attunement')
+        if m:
+            self.type = m['type']
+            self.subtype = m.group('subtype')
+            self.rarity = m['rarity']
+            self.attunement = m.group('attunement')
 
         # description
         description = []
-        tag = tag.find_next_sibling(['div','p'])
-        while tag:
-            description.append(tag.get_text(' ', strip=True))
-            tag = tag.find_next_sibling(['div','p'])
+        for e in tag.find_next_siblings(['div','ol','p','ul','li','table']):
+            if e.name == 'p':
+                description.append(e.get_text().strip())
+            elif e.name == 'li':
+                print(str(e))
+            elif e.name == 'div':
+                description.append(Monster(**{
+                    'content_type': 'Monster',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
+            elif e.name in ['ol','ul']:
+                description.append(List(**{
+                    'content_type': 'List',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
+            elif e.name == 'table':
+                description.append(Table(**{
+                    'content_type': 'Table',
+                    'book_path': self.book_path,
+                    'url': self.url,
+                    'html': str(e),
+                }))
+        
         self.description = description
 
         # figure
-        figure = process_figure(soup)
-        if figure: self.figure = figure
+        self.figure = process_figure(soup)
+
+    def to_str(self):
+        """
+        Converts the magic item to a plain text string.
+
+        Parameters
+        ----------
+        rules : str
+            Determines how the magic item is formatted, either ``'2014'`` or ``'2024'``. 
+            If ``'2014'`` the stat block will be formatted to match magic items published under the 2014 rules (5e), 
+            and if ``'2024'`` the format will match those published under the 2024 rules (5.5e).
+            Default value ``'2024'``.
+        
+        Returns
+        -------
+        text : str
+            Plain text magic item.
+        """
+        pt = []
+        
+        # name
+        pt.append(self.name)
+
+        # meta
+        if self.type:
+            meta = f'{self.type}'
+            if self.subtype: meta += f' ({self.subtype})'
+            meta += f', {self.rarity}'
+            pt.append(meta)
+
+        # description
+        for line in self.description:
+            if type(line) is str:
+                pt.append(line)
+            elif type(line) is List:
+                pt.append(line.to_str())
+            elif type(line) is Monster:
+                pt.append('\n' + line.to_str() + '\n')
+            elif type(line) is Table:
+                pt.append('\n' + line.to_str() + '\n')
+
+        return '\n'.join(pt)
