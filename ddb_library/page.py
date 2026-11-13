@@ -1,8 +1,6 @@
 from .content_functions import flatten_content
 from .html_processor import process_html
-from .myencoder import MyEncoder
 from bs4 import BeautifulSoup
-import json
 import os
 import re
 
@@ -714,14 +712,22 @@ class Page:
         if div:
             meta_data['previous_page'] = div.get('data-prev-link', '')
             meta_data['next_page'] = div.get('data-next-link', '')
+        else:
+            #div = soup.find('div', {'class': 'top-prev-page'})
+            div = soup.find('div', class_='top-prev-page')
+            if div: 
+                a = div.find('a')
+                if a: meta_data['previous_page'] = a.get('href', '  ')[2:]
+
+            div = soup.find('div', {'class': 'top-next-page'})
+            if div: 
+                a = div.find('a')
+                if a: meta_data['next_page'] = a.get('href', '  ')[2:]
 
         link = soup.find('link', {'rel': 'canonical'})
         if link: meta_data['url'] = link['href'].lower()
         
         return meta_data
-    
-    def to_json(self, **kwargs):
-        return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update( self ):
         """

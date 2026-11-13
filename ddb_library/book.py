@@ -1,8 +1,6 @@
 from .content_functions import flatten_content
-from .myencoder import MyEncoder
 from .page import Page
 from bs4 import BeautifulSoup
-import json
 import os
 import re
 
@@ -511,9 +509,6 @@ class Book:
         """Returns the number of pages in the book.
         """
         return len(self.pages)
-    
-    def to_json(self, **kwargs):
-        return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update(self, **kwargs):
         """

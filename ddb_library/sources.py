@@ -1,7 +1,5 @@
-from .myencoder import MyEncoder
 from bs4 import BeautifulSoup
 from .html_processor import process_html
-import json
 import os
 import re
 
@@ -263,9 +261,6 @@ class Sources:
             ))
         
         return books
-
-    def to_json(self, **kwargs):
-        return json.dumps(self.__dict__, cls=MyEncoder, **kwargs)
     
     def update( self ):
         """
