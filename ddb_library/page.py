@@ -242,11 +242,15 @@ class Page:
                 'unwrap_tags': [
                     'blockquote',
                     ('div', {'class': None}),
-                    ('div', {'class': ['flexible-double-column']}),
+                    ('div', {'class': re.compile(r'flexible-double-column.*')}),
                     ('div', {'class': ['efota-title','efota-title-text']}),
                     ('div', {'class': ['table-overflow-wrapper']}),
                     ('div', {'class': ['red-statblock-text']}),
-                    (['ol','ul']),
+                    ('div', {'class': ['hangingIndent']}),
+                    ('div', {'class': ['spells-chapter','_idGenObjectLayout-2']}), # 2014 control weather spell
+                    ('div', {'class': ['spell-components']}), # 2024 PH spells
+                    ('div', {'class': ['condensed-group']}), # some magic item property lists
+                    (lambda tag: tag.name == 'div' and 'ui-droppable' in tag.get('class', []) and 'stats' not in tag.get('class', []) and 'stat-block-ability-scores' not in tag.get('class', [])),
                 ],
             }
             ```
@@ -272,11 +276,15 @@ class Page:
             'unwrap_tags': [
                 'blockquote',
                 ('div', {'class': None}),
-                ('div', {'class': ['flexible-double-column']}),
+                ('div', {'class': re.compile(r'flexible-double-column.*')}),
                 ('div', {'class': ['efota-title','efota-title-text']}),
                 ('div', {'class': ['table-overflow-wrapper']}),
                 ('div', {'class': ['red-statblock-text']}),
-                (['ol','ul']),
+                ('div', {'class': ['hangingIndent']}),
+                ('div', {'class': ['spells-chapter','_idGenObjectLayout-2']}), # 2014 control weather spell
+                ('div', {'class': ['spell-components']}), # 2024 PH spells
+                ('div', {'class': ['condensed-group']}), # some magic item property lists
+                (lambda tag: tag.name == 'div' and 'ui-droppable' in tag.get('class', []) and 'stats' not in tag.get('class', []) and 'stat-block-ability-scores' not in tag.get('class', [])),
             ],
         }
         soup = BeautifulSoup(self.get_html(**kwargs.get('html_options', html_options)), 'html.parser')
@@ -433,6 +441,11 @@ class Page:
         def tag_type(tag):
             if tag.name == None:
                 return None
+            elif tag.name in ['hr']:
+                if 'separator' in tag.get('class', []):
+                    return 'separator'
+                else:
+                    return None
             elif tag.name in ['table']:
                 return 'table'
             elif tag.name in ['figure']:
@@ -535,6 +548,8 @@ class Page:
                     tn = tag_type(n)
                     if tn in ['magic item','item'] and headers.index(n.name) <= headers.index(tag.name):
                         break
+                    elif tn in ['separator']:
+                        break
                     elif tn in ['structural header'] and headers.index(n.name) <= headers.index(tag.name):
                         break
                     else:
@@ -567,7 +582,11 @@ class Page:
                 s = BeautifulSoup(str(tag), 'html.parser')
                 for n in tag.find_next_siblings():
                     tn = tag_type(n)
-                    if tn in ['structural header','spell']:
+                    if tn in ['spell']:
+                        break
+                    elif tn in ['separator']:
+                        break
+                    elif tn in ['structural header'] and headers.index(n.name) <= headers.index(tag.name):
                         break
                     else:
                         s.append('\n')
@@ -606,7 +625,6 @@ class Page:
                 tag = tag.next_sibling
 
             elif tt == 'list':
-                print(tag)
                 tag = tag.next_sibling
 
             elif tt == 'encounter':

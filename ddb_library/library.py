@@ -366,11 +366,15 @@ class Library:
                 'unwrap_tags': [
                     'blockquote',
                     ('div', {'class': None}),
-                    ('div', {'class': ['flexible-double-column']}),
+                    ('div', {'class': re.compile(r'flexible-double-column.*')}),
                     ('div', {'class': ['efota-title','efota-title-text']}),
                     ('div', {'class': ['table-overflow-wrapper']}),
                     ('div', {'class': ['red-statblock-text']}),
-                    (['ol','ul']),
+                    ('div', {'class': ['hangingIndent']}),
+                    ('div', {'class': ['spells-chapter','_idGenObjectLayout-2']}), # 2014 control weather spell
+                    ('div', {'class': ['spell-components']}), # 2024 PH spells
+                    ('div', {'class': ['condensed-group']}), # some magic item property lists
+                    (lambda tag: tag.name == 'div' and 'ui-droppable' in tag.get('class', []) and 'stats' not in tag.get('class', []) and 'stat-block-ability-scores' not in tag.get('class', [])),
                 ],
             }
             ```
