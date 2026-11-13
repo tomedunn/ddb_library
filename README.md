@@ -203,3 +203,27 @@ The content is returned as a `list` with a `dict` for each item containing the f
  * **html.** a string containing the content's html description.
  * **book_path.** a string showing the items location within its respective book based on the book's headers.
  * **url.** the URL of the content's parent header on D&D Beyond.
+
+Content can be processed further using the `ContentLibrary` class.
+
+```python
+clib = dbl.ContentLibrary(content)
+```
+
+This will attempt to convert each content type into a corresponding class by further processing its HTML. You can access this converted content through the content library's `contents` attribute. For example, to extract all successfully converted monsters,
+
+```python
+monsters = [c for c in clib.contents if type(c) is dbl.Monster]
+```
+
+You can use the `to_dict` class function to see the properties of any converted content.
+
+```python
+print(monsters[0].to_dict())
+```
+
+You can also use the `to_str` class function to convert most content types to a plain text format.
+
+```python
+print(monsters[0].to_str())
+```
