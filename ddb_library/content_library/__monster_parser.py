@@ -20,9 +20,12 @@ MONSTER_DEFAULTS = {
            7, 7, 7, 7, 8, 8, 8, 8, 9, 9],
 }
 
+def ability_score_modifier(ability_score):
+    return int(ability_score/2 - 5)
+
 def construct_monster(html, rules=None, debugging=False):
     monster = {}
-    s = splitup_html(html)
+    s = splitup_html(html, debugging=debugging)
     if s['header']: monster.update(parse_header(s['header'], debugging=debugging))
     if s['meta']: monster.update(parse_meta(s['meta'], debugging=debugging))
     if s['attributes']: monster.update(parse_attributes(s['attributes'], debugging=debugging))
@@ -149,7 +152,10 @@ def convert_to_2024_format(monster):
 
     if 'challenge' in monster:
         monster['cr'] = monster.pop('challenge')
-    
+
+    if 'initiative' not in monster:
+        monster['initiative'] = ability_score_modifier(monster['ability scores']['Dexterity'])
+
     if 'hit points' in monster:
         monster['hp'] = monster.pop('hit points')
 
@@ -264,6 +270,9 @@ def parse_attributes(html, **kwargs):
         for m in re.finditer(r'\b(?P<mode>[^\d]+) (?P<speed>\d+ ft.)', 'walk ' + attributes['speed'], re.IGNORECASE):
             speeds[m['mode'].title()] = m['speed']
         attributes['speed'] = speeds
+
+    if 'initiative' in attributes:
+        attributes['initiative'] = int(attributes['initiative'].split(' ')[0])
 
     return attributes
 
@@ -384,39 +393,39 @@ def parse_tidbits(html, debugging=False):
         )
         if m:
             tidbits['cr'] = m['cr']
-            tidbits['xp'] = m.group('normal_xp')
+            tidbits['xp'] = int(m.group('normal_xp').replace(',',''))
             tidbits['pb'] = m.group('proficiency')
-            if tidbits['xp']: tidbits['xp'] = int(tidbits['xp'].replace(',',''))
-            if tidbits['pb']: tidbits['pb'] = int(tidbits['pb'])
+            if len(tidbits['pb']) <= 3: tidbits['pb'] = int(tidbits['pb'])
+            
         else:
-            print('cr', tidbits['cr'])
+            if debugging: print('cr', tidbits['cr'])
             raise Exception('CR parsing error')
         
     elif 'challenge' in tidbits:
-            m = re.match(
-                r'(?P<cr>[^\s]+)'
-                r'(?:\s+\('
-                    r'(?P<normal_xp>[\d,]+) XP'
-                    #r'(?:, or (?P<special_xp>[\d,]+) (?P<special_place>in lair))'
-                r'\))?',
-                tidbits['challenge'],
-                re.IGNORECASE,
-            )
-            if m:
-                tidbits['challenge'] = m['cr']
-                tidbits['xp'] = m.group('normal_xp')
-                if tidbits['xp']: tidbits['xp'] = int(tidbits['xp'].replace(',',''))
-            else:
-                print('challenge', tidbits['cr'])
-                raise Exception('Challenge parsing error')
+        m = re.match(
+            r'(?P<cr>[^\s]+)'
+            r'(?:\s+\('
+                r'(?P<normal_xp>[\d,]+) XP'
+                #r'(?:, or (?P<special_xp>[\d,]+) (?P<special_place>in lair))'
+            r'\))?',
+            tidbits['challenge'],
+            re.IGNORECASE,
+        )
+        if m:
+            tidbits['challenge'] = m['cr']
+            tidbits['xp'] = m.group('normal_xp')
+            if tidbits['xp']: tidbits['xp'] = int(tidbits['xp'].replace(',',''))
+        else:
+            print('challenge', tidbits['cr'])
+            raise Exception('Challenge parsing error')
 
-            if not tidbits['xp']:
-                if tidbits['challenge'] in MONSTER_DEFAULTS['CR']:
-                    tidbits['xp'] = MONSTER_DEFAULTS['XP'][MONSTER_DEFAULTS['CR'].index(tidbits['challenge'])]
-            
-            if 'proficiency bonus' not in tidbits:
-                if tidbits['challenge'] in MONSTER_DEFAULTS['CR']:
-                    tidbits['proficiency bonus'] = MONSTER_DEFAULTS['PB'][MONSTER_DEFAULTS['CR'].index(tidbits['challenge'])]
+        if not tidbits['xp']:
+            if tidbits['challenge'] in MONSTER_DEFAULTS['CR']:
+                tidbits['xp'] = MONSTER_DEFAULTS['XP'][MONSTER_DEFAULTS['CR'].index(tidbits['challenge'])]
+        
+        if 'proficiency bonus' not in tidbits:
+            if tidbits['challenge'] in MONSTER_DEFAULTS['CR']:
+                tidbits['proficiency bonus'] = MONSTER_DEFAULTS['PB'][MONSTER_DEFAULTS['CR'].index(tidbits['challenge'])]
 
 
     if 'saving throws' in tidbits:
@@ -430,7 +439,7 @@ def parse_tidbits(html, debugging=False):
         }
         saving_throws = {}
         for m in re.finditer(r'(?P<ability>[A-Z]+)\s+(?P<bonus>[+-]\d+)', tidbits['saving throws'], re.IGNORECASE):
-            saving_throws[ABILITY_SCORE_DECODER[m['ability'].upper()]] = int(m['bonus'])
+            saving_throws[ABILITY_SCORE_DECODER.get(m['ability'].upper(), m['ability'].title())] = int(m['bonus'])
         tidbits['saving throws'] = saving_throws
 
     if 'skills' in tidbits:
@@ -445,14 +454,33 @@ def parse_tidbits(html, debugging=False):
             senses[m['sense'].title()] = m['value']
         if 'Passive Perception' in senses:
             senses['Passive Perception'] = int(senses['Passive Perception'])
+        else:
+            if debugging: print(tidbits['senses'])
         tidbits['senses'] = senses
-    
+
+    if debugging: print(tidbits)
     return tidbits
 
 def parse_traits(html, **kwargs):
     debugging = kwargs.get('debugging', False)
 
+    re_trait = re.compile(
+        r'^\s*(?P<full_name>'
+            r'(?P<name>'
+                r'(?:[A-Z][^\.\s]+|\+\d)'
+                r'(?:'
+                    r'\s+(?:[A-Z][^\,\.\s]+|and|at|a|but|by|for|from|in|of|on|or|the|through|to|with)\,?'
+                r')*'
+            r')'
+            r'(?:\s+\((?P<params>[^\)]+)\))?'
+        r')'
+        r'\s*[\.\?]'
+        r'\s*(?P<description>.*)$',
+    )
+
     def _line_type(tag, **kwargs):
+        if tag.name in ['ol','ul']:
+            return 'list'
         if tag.name == 'li':
             return 'option'
 
@@ -529,31 +557,20 @@ def parse_traits(html, **kwargs):
     while tag:
         line_type = _line_type(tag)
         if line_type == 'description':
-            trait['description'].append(tag.get_text())
+            traits.append(tag.get_text().strip())
+            #trait['description'].append(tag.get_text().strip())
         elif line_type in ['trait','option']:
             break
         else:
             pass
         tag = tag.next_sibling
+    if debugging: print(trait)
     if trait['description']:
         traits.append(trait)
     
     # find traits
     while tag:
-        m = re.match(
-            r'^\s*(?P<full_name>'
-                r'(?P<name>'
-                    r'(?:[A-Z][^\.\s]+|\+\d)'
-                    r'(?:'
-                        r'\s+(?:[A-Z][^\,\.\s]+|and|at|a|but|by|for|from|in|of|on|or|the|through|to|with)\,?'
-                    r')*'
-                r')'
-                r'(?:\s+\((?P<params>[^\)]+)\))?'
-            r')'
-            r'\s*[\.\?]'
-            r'\s*(?P<description>.*)$',
-            tag.get_text(),
-        )
+        m = re_trait.match(tag.get_text())
         if not m:
             if debugging: print(tag.get_text())
         trait = dict(name=m['full_name'], description=[m['description']])
@@ -564,6 +581,31 @@ def parse_traits(html, **kwargs):
                 trait['description'].append(tag.get_text())
             elif line_type == 'description':
                 trait['description'].append(tag.get_text())
+            elif line_type == 'list':
+                #trait['description'].append({
+                #    'content_type': 'List',
+                #    'html': str(tag),
+                #})
+                options = []
+                item = {}
+                for li in tag.find_all('li'):
+                    item_type = _line_type(li)
+                    if item_type in ['trait','option']:
+                        if item: options.append(item)
+                        m = re_trait.match(li.get_text())
+                        if m:
+                            item = dict(name=m['full_name'], description=[m['description']])
+                        else:
+                            item = li.get_text().strip()
+                    else:
+                        item['description'].append(li.get_text().strip())
+                if item: options.append(item)
+
+                trait['description'].append({
+                    'list_type': 'ordered' if tag.name == 'ol' else 'unordered',
+                    'list_items': options,
+                })
+                
             elif line_type == 'trait':
                 break
             else:
@@ -584,10 +626,10 @@ def parse_reactions(html, **kwargs):
     return {'reactions': parse_traits(html, **kwargs)['traits']}
 
 def parse_legendary_actions(html, **kwargs):
-    return {'legendary_actions': parse_traits(html, **kwargs)['traits']}
+    return {'legendary actions': parse_traits(html, **kwargs)['traits']}
 
 def parse_mythic_actions(html, **kwargs):
-    return {'mythic_actions': parse_traits(html, **kwargs)['traits']}
+    return {'mythic actions': parse_traits(html, **kwargs)['traits']}
 
 def parse_roleplaying_information(html, **kwargs):
     debugging = kwargs.get('debugging', False)
@@ -673,7 +715,7 @@ def parse_figure(html, **kwargs):
     
     return {'figure': figure}
 
-def splitup_html(html):
+def splitup_html(html, debugging=False):
     sections = {
         'header': '',
         'meta': '',
@@ -697,15 +739,18 @@ def splitup_html(html):
     # header
     tag = soup.contents[0]
     sections['header'] = str(tag)
+    if debugging: print(str(tag))
 
     # meta
     tag = tag.next_sibling
     sections['meta'] = str(tag)
+    if debugging: print(str(tag))
 
     # attributes
     tag = tag.next_sibling
     while tag.name != 'div':
         sections['attributes'] += str(tag)
+        if debugging: print(str(tag))
         tag = tag.next_sibling
 
     # ability scores

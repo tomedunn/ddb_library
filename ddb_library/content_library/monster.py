@@ -181,8 +181,8 @@ class Monster(Content):
             pt.append(f'{self.size} {self.type}, {self.alignment}')
 
         pt.append(f'Armor Class {self.armor_class}')
-        if rules == '2024':
-            pt.append(f'Initiative {self.initiative:+d}')
+        
+        pt.append(f'Initiative {self.initiative:+d}')
         
         pt.append(f'Hit Points {self.hit_points}')
 
@@ -248,21 +248,45 @@ class Monster(Content):
                 pt.append(f'Senses {senses}')
         
         if self.languages: pt.append(f'Languages {self.languages}')
+
+        if type(self.proficiency_bonus) is int:
+            pb = f'{self.proficiency_bonus:+d}'
+        else:
+            pb = f'{self.proficiency_bonus}'
         
         if self.challenge:
             if rules == '2014':
                 pt.append(f'Challenge {self.challenge} ({self.xp:,d} XP)')
             elif rules == '2024':
-                pt.append(f'Challenge {self.challenge} (XP {self.xp}; PB {self.proficiency_bonus:+d})')
+                pt.append(f'Challenge {self.challenge} (XP {self.xp}; PB {pb})')
         
         if self.proficiency_bonus:
             if rules == '2014':
-                pt.append(f'Proficiency Bonus {self.proficiency_bonus:+d}')
+                pt.append(f'Proficiency Bonus {pb}')
 
         pt.append('')
 
         def feature_to_str(f):
-            return f['name'] + '. ' + '\n'.join(f['description'])
+            if type(f) is str: return f
+
+            name = f['name']
+            ft = []
+            for line in f['description']:
+                if type(line) is dict:
+                    ft.append(option_list_to_str(line))
+                else:
+                    ft.append(line)
+            return f'{name}. ' + '\n'.join(ft)
+
+        def option_list_to_str(option_list):
+            list_type = option_list['list_type']
+            i = 0
+            ot = []
+            for li in option_list['list_items']:
+                i += 1
+                prefix = f' {i}.' if list_type == 'ordered' else ' *'
+                ot.append(f'{prefix} {feature_to_str(li)}')
+            return '\n'.join(ot)
 
         # traits
         if self.traits:
@@ -295,24 +319,21 @@ class Monster(Content):
         # legendary actions
         if self.legendary_actions:
             pt.append('Legendary Actions')
-            pt.append('\n'.join(self.legendary_actions[0]['description']))
-            for action in self.legendary_actions[1:]:
+            for action in self.legendary_actions:
                 pt.append(feature_to_str(action))
             pt.append('')
 
         # legendary actions
         if self.mythic_actions:
             pt.append('Mythic Actions')
-            pt.append('\n'.join(self.mythic_actions[0]['description']))
-            for action in self.mythic_actions[1:]:
+            for action in self.mythic_actions:
                 pt.append(feature_to_str(action))
             pt.append('')
 
         # roleplaying information
         if self.roleplaying_information:
             pt.append('Roleplaying Information')
-            pt.append('\n'.join(self.roleplaying_information[0]['description']))
-            for action in self.roleplaying_information[1:]:
+            for action in self.roleplaying_information:
                 pt.append(feature_to_str(action))
             pt.append('')
         
