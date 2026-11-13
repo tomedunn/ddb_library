@@ -64,7 +64,7 @@ Within the library's root folder there should be a `sources.html` files as well 
 
 The `sources.html` comes from [https://www.dndbeyond.com/sources](https://www.dndbeyond.com/sources) and the folder for each book is based on the last part of the book's url on D&D Beyond. 
 
-For example, the url for the _D&D Free Rules (2024)_ is [https://www.dndbeyond.com/sources/dnd/free-rules](https://www.dndbeyond.com/sources/dnd/free-rules) and so the folder for it is `./sources/free-rules`.
+For example, the url for the _D&D Beyond Basic Rules_ is [https://www.dndbeyond.com/sources/dnd/br-2024](https://www.dndbeyond.com/sources/dnd/br-2024) and so the folder for it is `./sources/br-2024`.
 
 The file `sources.html` can have a different name, but that name will need to be specified when creating the library.
 
